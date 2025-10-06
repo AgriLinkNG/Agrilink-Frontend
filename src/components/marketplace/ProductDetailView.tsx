@@ -13,10 +13,17 @@ interface ProductDetailViewProps {
   product: Product | null;
   isOpen: boolean;
   onClose: () => void;
+  onChatSeller?: () => void;
 }
 
-const ProductDetailView: React.FC<ProductDetailViewProps> = ({ product, isOpen, onClose }) => {
+const ProductDetailView: React.FC<ProductDetailViewProps> = ({ product, isOpen, onClose, onChatSeller }) => {
   if (!product) return null;
+
+  const handleChatSeller = () => {
+    if (onChatSeller) {
+      onChatSeller();
+    }
+  };
 
   return (
     <>
@@ -591,21 +598,27 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({ product, isOpen, 
             gap: 16,
             display: 'inline-flex'
           }}>
-            <div data-property-1="Default" style={{
-              flex: '1 1 0',
-              minWidth: 160,
-              minHeight: 40,
-              paddingLeft: 24,
-              paddingRight: 24,
-              paddingTop: 12,
-              paddingBottom: 12,
-              background: 'hsl(var(--brand-colors-SproutGreen, 86 64% 47%))',
-              borderRadius: 30,
-              justifyContent: 'center',
-              alignItems: 'center',
-              gap: 10,
-              display: 'flex'
-            }}>
+            <button
+              onClick={handleChatSeller}
+              data-property-1="Default"
+              style={{
+                flex: '1 1 0',
+                minWidth: 160,
+                minHeight: 40,
+                paddingLeft: 24,
+                paddingRight: 24,
+                paddingTop: 12,
+                paddingBottom: 12,
+                background: 'hsl(var(--brand-colors-SproutGreen, 86 64% 47%))',
+                borderRadius: 30,
+                justifyContent: 'center',
+                alignItems: 'center',
+                gap: 10,
+                display: 'flex',
+                border: 'none',
+                cursor: 'pointer'
+              }}
+            >
               <div style={{
                 color: 'hsl(var(--brand-colors-SteamWhite, 0 0% 100%))',
                 fontSize: 16,
@@ -615,7 +628,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({ product, isOpen, 
               }}>
                 Chat Seller
               </div>
-            </div>
+            </button>
             <div style={{
               padding: 10,
               background: 'hsl(var(--brand-colors-SteamWhite, 0 0% 100%))',
@@ -1020,7 +1033,10 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({ product, isOpen, 
 
           {/* Bottom Action Bar */}
           <div style={{width: '100%', maxWidth: '390px', paddingLeft: 16, paddingRight: 16, paddingTop: 8, paddingBottom: 8, position: 'fixed', top: 0, left: '50%', transform: 'translateX(-50%)', background: 'rgba(255, 255, 255, 0.70)', borderRadius: 99, justifyContent: 'flex-start', alignItems: 'center', gap: 16, display: 'flex', zIndex: 100, boxSizing: 'border-box'}}>
-            <button style={{flex: '1 1 0', minWidth: 160, minHeight: 40, paddingLeft: 24, paddingRight: 24, paddingTop: 12, paddingBottom: 12, background: '#84C62C', borderRadius: 30, justifyContent: 'center', alignItems: 'center', gap: 10, display: 'flex', border: 'none', cursor: 'pointer'}}>
+            <button
+              onClick={handleChatSeller}
+              style={{flex: '1 1 0', minWidth: 160, minHeight: 40, paddingLeft: 24, paddingRight: 24, paddingTop: 12, paddingBottom: 12, background: '#84C62C', borderRadius: 30, justifyContent: 'center', alignItems: 'center', gap: 10, display: 'flex', border: 'none', cursor: 'pointer'}}
+            >
               <div style={{color: 'white', fontSize: 16, fontFamily: 'MadaniArabic-Bold', fontWeight: '400', wordWrap: 'break-word'}}>
                 Chat Seller
               </div>
