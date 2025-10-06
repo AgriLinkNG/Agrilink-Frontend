@@ -74,6 +74,11 @@ const BuyersMarketplace = () => {
     setSelectedProduct(null);
   };
 
+  const handleChatSeller = () => {
+    setIsDetailViewOpen(false);
+    setActiveView('chats');
+  };
+
   // Computed values
   const displayProducts = getDisplayProducts();
 
@@ -264,6 +269,7 @@ const BuyersMarketplace = () => {
           product={selectedProduct}
           isOpen={isDetailViewOpen}
           onClose={handleCloseDetailView}
+          onChatSeller={handleChatSeller}
         />
       )}
     </div>
