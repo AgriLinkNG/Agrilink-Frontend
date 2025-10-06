@@ -819,7 +819,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({ product, isOpen, 
             src={product.image}
             alt={product.name}
           />
-
+              
           {/* Product Image Thumbnails */}
           <div style={{width: '100%', maxWidth: '358px', margin: '16px auto 0', justifyContent: 'space-between', alignItems: 'center', display: 'flex'}}>
             <img style={{width: 75, height: 75, borderRadius: 10, border: '3px #84C62C solid', objectFit: 'cover'}} src={product.image} alt="thumbnail" />
