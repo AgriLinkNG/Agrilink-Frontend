@@ -36,3 +36,7 @@ secrets.json
 *.sln
 *.sw?
 .claude
+
+# Project documentation (private)
+SECURITY_AUDIT_REPORT.md
+PRODUCTION_LAUNCH_CHECKLIST.md

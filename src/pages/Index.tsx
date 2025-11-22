@@ -57,13 +57,12 @@ const Index = () => {
               ></span>
             </div>
             <div className="flex flex-wrap justify-center items-center gap-3 sm:gap-4 md:gap-6 lg:gap-8">
-              {Array.from({ length: 5 }, (_, index) => {
-                const partnerId = index + 1;
+              {[1, 2, 3, 5].map((partnerId) => {
                 const isPartner5 = partnerId === 5;
 
                 return (
                   <div
-                    key={index}
+                    key={partnerId}
                     className={`w-12 h-12 sm:w-16 sm:h-16 md:w-20 md:h-20 bg-white/60 rounded-lg shadow-sm flex items-center justify-center ${isPartner5 ? 'p-0' : 'p-2 sm:p-3'}`}
                   >
                     <img
