@@ -1,9 +1,7 @@
-import { Link } from 'react-router-dom';
-
 const FeatureCard = ({ title, description, number }) => {
   return (
-    <div 
-      className="relative p-4 sm:p-6 shadow-md overflow-visible flex flex-col w-full max-w-sm mx-auto"
+    <div
+      className="relative p-4 sm:p-6 shadow-md overflow-hidden flex flex-col w-full max-w-sm mx-auto"
       style={{
         minHeight: '280px',
         height: '320px',
@@ -14,31 +12,21 @@ const FeatureCard = ({ title, description, number }) => {
       }}
     >
       {/* Background logo image */}
-      <div 
-        className="absolute z-0"
+      <div
+        className="absolute z-0 pointer-events-none"
         style={{
           width: '120px',
           height: '120px',
-          bottom: '10px',
-          right: '-30px',
-          opacity: 0.15,
-          border: '6.66px solid var(--brand-colors-SproutGreen, hsla(86, 64%, 47%, 1))',
-          transform: 'rotate(0deg)',
-          borderRadius: '50%'
+          bottom: '20px',
+          right: '-20px',
+          opacity: 0.7
         }}
       >
-        <Link to="/" className="cursor-pointer w-full h-full">
-          <img
-            src="/agrilink-logo-features-card.webp"
-            alt="Agrilink Logo Background"
-            className="w-full h-full object-contain"
-            onError={(e) => {
-              console.log('Image failed to load:', e.target.src);
-              e.target.style.backgroundColor = 'red';
-            }}
-            onLoad={() => console.log('Image loaded successfully')}
-          />
-        </Link>
+        <img
+          src="/agrilink-logo-features-card.webp"
+          alt=""
+          className="w-full h-full object-contain"
+        />
       </div>
       
       <span 

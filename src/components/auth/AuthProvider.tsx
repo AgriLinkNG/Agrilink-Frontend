@@ -1,6 +1,6 @@
 // Authentication provider component with error boundaries and security monitoring
 
-import React, { ReactNode, useEffect } from 'react';
+import React, { ReactNode, useEffect, useState } from 'react';
 import { AuthContext_, useAuthProvider, AuthContextType } from '../../hooks/useAuth';
 import { ApiRequestError } from '../../services/api';
 
@@ -89,6 +89,16 @@ const AuthLoadingSpinner: React.FC = () => (
 // Main authentication provider
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const auth = useAuthProvider();
+  const [minLoadTimeElapsed, setMinLoadTimeElapsed] = useState(false);
+
+  // Ensure loading screen shows for at least 250ms to prevent jarring flashes
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setMinLoadTimeElapsed(true);
+    }, 250);
+
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     if (auth.isAuthenticated && auth.user) {
@@ -119,8 +129,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  // Show loading screen while initializing
-  if (!auth.isInitialized) {
+  // Show loading screen while initializing AND until minimum display time has elapsed
+  if (!auth.isInitialized || !minLoadTimeElapsed) {
     return <AuthLoadingSpinner />;
   }
 

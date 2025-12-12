@@ -43,32 +43,36 @@ const Hero = () => {
           </p>
 
           {/* CTA Buttons */}
-          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-8 sm:mb-12 items-center sm:items-start">
-            <Link to="/farmers-signup">
-              <Button 
-                size="lg" 
-                className="bg-primary text-primary-foreground hover:bg-[hsl(var(--brand-colors-SoilBlush))] transition-colors duration-200"
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-4 sm:mb-12 w-full sm:w-auto">
+            <Link to="/farmers-signup" className="w-full sm:w-auto">
+              <Button
+                size="lg"
+                className="w-full sm:w-[200px] bg-primary text-primary-foreground hover:bg-[hsl(var(--brand-colors-SoilBlush))] transition-colors duration-200"
                 style={{
-                  width: '200px',
                   height: '60px',
-                  minWidth: '200px',
                   gap: '10px',
                   opacity: 1,
                   borderRadius: '30px',
                   paddingTop: '12px',
                   paddingRight: '24px',
                   paddingBottom: '12px',
-                  paddingLeft: '24px'
+                  paddingLeft: '24px',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  display: 'inline-flex',
+                  fontSize: '14px',
+                  fontFamily: 'MadaniArabic-Bold',
+                  fontWeight: '400'
                 }}
               >
                 Farmers Sign Up
               </Button>
             </Link>
-            <Link to="/buyer-signup">
-              <Button 
-                variant="outline" 
+            <Link to="/buyer-signup" className="w-full sm:w-auto">
+              <Button
+                variant="outline"
                 size="lg"
-                className="text-black border-white transition-colors duration-200"
+                className="w-full sm:w-[200px] text-black border-white transition-colors duration-200"
                 onMouseEnter={(e) => {
                   (e.target as HTMLElement).style.background = 'hsl(var(--brand-colors-SoilBlush))';
                   (e.target as HTMLElement).style.color = 'white';
@@ -78,9 +82,7 @@ const Hero = () => {
                   (e.target as HTMLElement).style.color = 'black';
                 }}
                 style={{
-                  width: '200px',
                   height: '60px',
-                  minWidth: '200px',
                   gap: '10px',
                   opacity: 1,
                   borderRadius: '30px',
@@ -88,7 +90,13 @@ const Hero = () => {
                   paddingRight: '24px',
                   paddingBottom: '12px',
                   paddingLeft: '24px',
-                  background: 'hsl(var(--brand-colors-HarvestMist, 114 88% 94%))'
+                  background: 'hsl(var(--brand-colors-HarvestMist, 114 88% 94%))',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  display: 'inline-flex',
+                  fontSize: '14px',
+                  fontFamily: 'MadaniArabic-Bold',
+                  fontWeight: '400'
                 }}
               >
                 Buyers Sign Up

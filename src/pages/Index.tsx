@@ -15,9 +15,9 @@ const Index = () => {
       <Header />
       <div className="relative">
         <Hero />
-        
+
         {/* Partners Box - part of hero section */}
-        <div 
+        <div
           className="absolute z-20 shadow-lg left-4 right-4 sm:left-8 sm:right-8 md:left-16 md:right-16 lg:left-24 lg:right-24"
           style={{
             minHeight: '120px',
@@ -34,39 +34,39 @@ const Index = () => {
           {/* Partners Section */}
           <div className="text-center h-full flex flex-col justify-center">
             <div className="flex items-center justify-center mb-4 sm:mb-6">
-              <span 
-                className="bg-primary hidden sm:block"
+              <span
+                className="bg-primary block"
                 style={{
-                  width: '60px',
-                  height: '8px',
+                  width: '40px',
+                  height: '6px',
                   borderRadius: '20px',
-                  marginRight: '16px'
+                  marginRight: '12px'
                 }}
               ></span>
-              <p className="text-gray-700 text-xs sm:text-sm uppercase tracking-wide px-2 sm:px-0">
+              <p className="text-gray-700 text-xs sm:text-sm uppercase tracking-wide">
                 In Collaboration With
               </p>
-              <span 
-                className="bg-primary hidden sm:block"
+              <span
+                className="bg-primary block"
                 style={{
-                  width: '60px',
-                  height: '8px',
+                  width: '40px',
+                  height: '6px',
                   borderRadius: '20px',
-                  marginLeft: '16px'
+                  marginLeft: '12px'
                 }}
               ></span>
             </div>
             <div className="flex flex-wrap justify-center items-center gap-3 sm:gap-4 md:gap-6 lg:gap-8">
-              {[1, 2, 3, 5].map((partnerId) => {
-                const isPartner5 = partnerId === 5;
+              {[1, 2, 3].map((partnerId) => {
+                const isPartner3 = partnerId === 3;
 
                 return (
                   <div
                     key={partnerId}
-                    className={`w-12 h-12 sm:w-16 sm:h-16 md:w-20 md:h-20 bg-white/60 rounded-lg shadow-sm flex items-center justify-center ${isPartner5 ? 'p-0' : 'p-2 sm:p-3'}`}
+                    className={`w-12 h-12 sm:w-16 sm:h-16 md:w-20 md:h-20 bg-white/60 rounded-lg shadow-sm flex items-center justify-center ${isPartner3 ? 'p-0' : 'p-2 sm:p-3'}`}
                   >
                     <img
-                      src={isPartner5 ? `/partner-${partnerId}.webp` : `/partner-${partnerId}.svg`}
+                      src={isPartner3 ? `/partner-${partnerId}.webp` : `/partner-${partnerId}.svg`}
                       alt={`Partner ${partnerId}`}
                       className="w-full h-full object-contain"
                       loading="lazy"
@@ -82,7 +82,7 @@ const Index = () => {
           </div>
         </div>
       </div>
-      
+
       <div className="mt-16 sm:mt-20 md:mt-24 lg:mt-28">
         <ProblemSection />
       </div>

@@ -63,49 +63,51 @@ const SolutionSection = () => {
                 "No middlemen. No stories. Just direct connection and better deals" sign up now
               </p>
 
-              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mt-4 sm:mt-6">
-                <Button 
-                  size="lg" 
-                  className="bg-primary text-primary-foreground hover:bg-[hsl(var(--brand-colors-SoilBlush))] transition-colors duration-200"
+              <div className="flex flex-row gap-2 sm:gap-4 mt-4 sm:mt-6">
+                <Button
+                  size="lg"
+                  className="flex-1 sm:flex-none bg-primary text-primary-foreground hover:bg-[hsl(var(--brand-colors-SoilBlush))] transition-colors duration-200"
                   style={{
-                    width: '200px',
-                    height: '60px',
-                    minWidth: '200px',
+                    height: '50px',
                     gap: '10px',
                     opacity: 1,
                     borderRadius: '30px',
                     paddingTop: '12px',
-                    paddingRight: '24px',
+                    paddingRight: '16px',
                     paddingBottom: '12px',
-                    paddingLeft: '24px'
+                    paddingLeft: '16px',
+                    fontSize: '12px',
+                    fontFamily: 'MadaniArabic-Bold',
+                    fontWeight: '400'
                   }}
                 >
                   Farmers Sign Up
                 </Button>
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   size="lg"
-                  className="text-black border-primary transition-colors duration-200"
+                  className="flex-1 sm:flex-none text-black border-none transition-colors duration-200"
                   onMouseEnter={(e) => {
-                    e.target.style.background = 'hsl(var(--brand-colors-SoilBlush))';
-                    e.target.style.color = 'white';
+                    (e.target as HTMLElement).style.background = 'hsl(var(--brand-colors-SoilBlush))';
+                    (e.target as HTMLElement).style.color = 'white';
                   }}
                   onMouseLeave={(e) => {
-                    e.target.style.background = 'hsl(var(--brand-colors-HarvestMist, 114 88% 94%))';
-                    e.target.style.color = 'black';
+                    (e.target as HTMLElement).style.background = 'hsl(var(--brand-colors-HarvestMist, 114 88% 94%))';
+                    (e.target as HTMLElement).style.color = 'black';
                   }}
                   style={{
-                    width: '200px',
-                    height: '60px',
-                    minWidth: '200px',
+                    height: '50px',
                     gap: '10px',
                     opacity: 1,
                     borderRadius: '30px',
                     paddingTop: '12px',
-                    paddingRight: '24px',
+                    paddingRight: '16px',
                     paddingBottom: '12px',
-                    paddingLeft: '24px',
-                    background: 'hsl(var(--brand-colors-HarvestMist, 114 88% 94%))'
+                    paddingLeft: '16px',
+                    background: 'hsl(var(--brand-colors-HarvestMist, 114 88% 94%))',
+                    fontSize: '12px',
+                    fontFamily: 'MadaniArabic-Bold',
+                    fontWeight: '400'
                   }}
                 >
                   Buyers Sign Up
