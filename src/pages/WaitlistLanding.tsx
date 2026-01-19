@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import { submitWaitlistEntry, WaitlistFormData } from "@/services/waitlistService";
 
 interface FormData {
   name: string;
@@ -53,13 +54,14 @@ export default function WaitlistLanding() {
     setLoading(true);
 
     try {
-      // TODO: Replace with actual API endpoint
-      console.log('Waitlist submission:', formData);
+      // Submit to Supabase
+      const result = await submitWaitlistEntry(formData as WaitlistFormData);
 
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
-
-      setSubmitted(true);
+      if (result.success) {
+        setSubmitted(true);
+      } else {
+        setError(result.message);
+      }
     } catch (err) {
       setError('Something went wrong. Please try again.');
       console.error('Submission error:', err);
@@ -67,6 +69,7 @@ export default function WaitlistLanding() {
       setLoading(false);
     }
   };
+
 
   return (
     <div className="min-h-screen bg-white">
