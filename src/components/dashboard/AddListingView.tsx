@@ -1,20 +1,18 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { productsService, CreateProductRequest } from '@/services/productsService';
-import { api } from '@/services/api';
-
-interface Listing {
-  id: number;
-  title: string;
-  description: string;
-  price: string;
-  unit: string;
-  location: string;
-  image: string;
-  category: string;
-  farmAddress: string;
-  averageMarketPrice: string;
-  images: string[];
-}
+import { uploadService } from '@/services/uploadService';
+import { farmAddressService } from '@/services/farmAddressService';
+import { ApiRequestError } from '@/services/api';
+import ApiErrorDisplay from '@/components/ui/ApiErrorDisplay';
+import { useCreateListing } from '@/hooks/useListingsQuery';
+import {
+  CreateListingRequest,
+  ProductImage,
+  FarmAddress,
+  ProductCategory,
+  UnitOfMeasurement,
+  CATEGORY_DISPLAY_NAMES,
+  UNIT_DISPLAY_NAMES,
+} from '@/types/listings';
 
 interface AddListingViewProps {
   onSave: () => void;
@@ -25,84 +23,109 @@ const AddListingView: React.FC<AddListingViewProps> = ({
   onSave,
   onCancel
 }) => {
-  const [addFormData, setAddFormData] = useState<Partial<Listing>>({
-    title: '',
-    description: '',
-    price: '',
-    unit: 'Per Unit',
-    location: '',
-    category: '',
+  // Form state
+  const [formData, setFormData] = useState({
+    produceName: '',
+    produceDescription: '',
+    category: '' as ProductCategory | '',
+    unitPrice: '',
+    unitOfMeasurement: 'kg' as UnitOfMeasurement,
+    quantityAvailable: '',
+    minimumOrderQuantity: '1',
     farmAddress: '',
-    images: []
+    harvestDate: '',
+    expiryDate: '',
+    organicCertified: false,
+    tags: '',
   });
-  const [uploadedImages, setUploadedImages] = useState<string[]>([]);
-  const [isUploading, setIsUploading] = useState(false);
+
+  // Image state
+  const [images, setImages] = useState<ProductImage[]>([]);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [uploadingIndex, setUploadingIndex] = useState<number | null>(null);
+
+  // Farm addresses
+  const [farmAddresses, setFarmAddresses] = useState<FarmAddress[]>([]);
+  const [isLoadingAddresses, setIsLoadingAddresses] = useState(true);
+
+  // UI state
   const [isSaving, setIsSaving] = useState(false);
-  const [addScrollPosition, setAddScrollPosition] = useState(0);
-  const addScrollContainerRef = useRef<HTMLDivElement>(null);
+  const [error, setError] = useState<ApiRequestError | Error | null>(null);
+  const [scrollPosition, setScrollPosition] = useState(0);
+
+  // React Query mutation hook
+  const createListingMutation = useCreateListing();
+
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
-  // Handle scroll position for add view custom scrollbar
-  const handleAddScroll = () => {
-    if (addScrollContainerRef.current) {
-      const { scrollTop, scrollHeight, clientHeight } = addScrollContainerRef.current;
+  // Fetch farm addresses on mount
+  useEffect(() => {
+    const fetchAddresses = async () => {
+      try {
+        const addresses = await farmAddressService.getAddresses();
+        setFarmAddresses(addresses);
+      } catch (err) {
+        console.error('Failed to fetch farm addresses:', err);
+      } finally {
+        setIsLoadingAddresses(false);
+      }
+    };
+    fetchAddresses();
+  }, []);
+
+  // Handle scroll for custom scrollbar
+  const handleScroll = () => {
+    if (scrollContainerRef.current) {
+      const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current;
       const maxScroll = scrollHeight - clientHeight;
       const scrollPercentage = maxScroll > 0 ? scrollTop / maxScroll : 0;
-      setAddScrollPosition(scrollPercentage);
+      setScrollPosition(scrollPercentage);
     }
   };
 
-  // Handle form input changes
-  const handleAddFormChange = (field: keyof Listing, value: string) => {
-    setAddFormData({ ...addFormData, [field]: value });
+  // Handle form field changes
+  const handleFieldChange = (field: string, value: string | boolean) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    setError(null);
   };
 
   // Handle image upload
   const handleImageUpload = async (index: number, file: File) => {
     if (!file) return;
 
-    // Validate file type
+    // Validate file type (size will be automatically compressed)
     const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
     if (!validTypes.includes(file.type)) {
-      alert('Please upload a valid image file (JPEG, PNG, or WebP)');
+      setError(new Error('Please upload only JPEG, PNG, or WebP images'));
       return;
     }
 
-    // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      alert('Image size should be less than 5MB');
-      return;
-    }
-
-    setIsUploading(true);
+    setIsUploadingImage(true);
+    setUploadingIndex(index);
+    setError(null);
 
     try {
-      const formData = new FormData();
-      formData.append('image', file);
+      const isPrimary = images.length === 0 || index === 0;
+      const uploadedImage = await uploadService.uploadSingleImage(file, isPrimary);
 
-      // Upload image to backend
-      const response = await api.upload<{ url: string }>('/upload/image', formData);
-
-      if (response.success && response.data?.url) {
-        const newImages = [...uploadedImages];
-        newImages[index] = response.data.url;
-        setUploadedImages(newImages);
-
-        // Update form data
-        setAddFormData({
-          ...addFormData,
-          images: newImages.filter(img => img) // Remove empty slots
-        });
+      const newImages = [...images];
+      if (index < newImages.length) {
+        newImages[index] = uploadedImage;
+      } else {
+        newImages.push(uploadedImage);
       }
-    } catch (error) {
-      console.error('Image upload failed:', error);
-      alert('Failed to upload image. Please try again.');
+      setImages(newImages);
+    } catch (err) {
+      console.error('Image upload failed:', err);
+      setError(err instanceof Error ? err : new Error('Failed to upload image'));
     } finally {
-      setIsUploading(false);
+      setIsUploadingImage(false);
+      setUploadingIndex(null);
     }
   };
 
-  // Handle image selection
+  // Handle image selection click
   const handleImageSelect = (index: number) => {
     fileInputRefs.current[index]?.click();
   };
@@ -115,33 +138,97 @@ const AddListingView: React.FC<AddListingViewProps> = ({
     }
   };
 
-  // Handle save new listing
+  // Remove image
+  const handleRemoveImage = async (index: number) => {
+    const imageToRemove = images[index];
+
+    try {
+      if (imageToRemove.filename) {
+        await uploadService.deleteProductImage(imageToRemove.filename);
+      }
+    } catch (err) {
+      console.error('Failed to delete image from server:', err);
+    }
+
+    const newImages = images.filter((_, i) => i !== index);
+    if (newImages.length > 0 && !newImages.some(img => img.isPrimary)) {
+      newImages[0].isPrimary = true;
+    }
+    setImages(newImages);
+  };
+
+  // Set primary image
+  const handleSetPrimary = (index: number) => {
+    const newImages = images.map((img, i) => ({
+      ...img,
+      isPrimary: i === index
+    }));
+    setImages(newImages);
+  };
+
+  // Save new listing
   const handleSaveNewListing = async () => {
-    // Validate required fields
-    if (!addFormData.title || !addFormData.category || !addFormData.price || !addFormData.description) {
-      alert('Please fill in all required fields');
+    // Validation
+    if (!formData.produceName.trim()) {
+      setError(new Error('Product name is required'));
+      return;
+    }
+    if (!formData.category) {
+      setError(new Error('Category is required'));
+      return;
+    }
+    if (!formData.produceDescription.trim()) {
+      setError(new Error('Description is required'));
+      return;
+    }
+    if (!formData.unitPrice || parseFloat(formData.unitPrice) < 0) {
+      setError(new Error('Valid price is required'));
+      return;
+    }
+    if (images.length === 0) {
+      setError(new Error('At least one image is required'));
+      return;
+    }
+    if (!formData.farmAddress) {
+      setError(new Error('Farm address is required. Please create an address first if you don\'t have one.'));
       return;
     }
 
     setIsSaving(true);
+    setError(null);
 
     try {
-      const productData: CreateProductRequest = {
-        name: addFormData.title,
-        description: addFormData.description,
-        price: parseFloat(addFormData.price.replace(/[₦,]/g, '')),
-        category: addFormData.category,
-        quantity: 1, // Default quantity
-        images: uploadedImages.filter(img => img) // Only include uploaded images
+      const listingData: CreateListingRequest = {
+        produceName: formData.produceName,
+        produceDescription: formData.produceDescription,
+        category: formData.category as ProductCategory,
+        unitPrice: parseFloat(formData.unitPrice),
+        unitOfMeasurement: formData.unitOfMeasurement,
+        quantityAvailable: parseInt(formData.quantityAvailable) || 0,
+        minimumOrderQuantity: parseInt(formData.minimumOrderQuantity) || 1,
+        farmAddress: formData.farmAddress,
+        images: images,
+        organicCertified: formData.organicCertified,
+        tags: formData.tags.split(',').map(t => t.trim()).filter(t => t),
       };
 
-      await productsService.createProduct(productData);
+      // Only include dates if they have values
+      if (formData.harvestDate) {
+        listingData.harvestDate = formData.harvestDate;
+      }
+      if (formData.expiryDate) {
+        listingData.expiryDate = formData.expiryDate;
+      }
 
-      alert('Product added successfully!');
+      // Use React Query mutation (automatically invalidates cache)
+      await createListingMutation.mutateAsync(listingData);
+
+      // Success - parent will refetch via React Query cache invalidation
       onSave();
-    } catch (error) {
-      console.error('Failed to save listing:', error);
-      alert('Failed to save listing. Please try again.');
+
+    } catch (err) {
+      console.error('Failed to create listing:', err);
+      setError(err instanceof Error ? err : new Error('Failed to create product'));
     } finally {
       setIsSaving(false);
     }
@@ -149,17 +236,29 @@ const AddListingView: React.FC<AddListingViewProps> = ({
 
   return (
     <div className="flex-1 overflow-hidden relative">
-      <div 
-        ref={addScrollContainerRef}
-        onScroll={handleAddScroll}
+      <div
+        ref={scrollContainerRef}
+        onScroll={handleScroll}
         className="w-[474px] h-full left-[20px] top-[10px] absolute overflow-y-auto pr-2"
-        style={{ 
-          scrollbarWidth: 'none', 
+        style={{
+          scrollbarWidth: 'none',
           msOverflowStyle: 'none'
         }}
       >
+        {/* Error Message */}
+        <ApiErrorDisplay
+          error={error}
+          context="creating product listing"
+          onRetry={handleSaveNewListing}
+          onDismiss={() => setError(null)}
+        />
+
         {/* Upload Images Section */}
         <div className="w-[474px] mb-5">
+          <div className="px-2.5 mb-3 text-brand-colors-RootBlack text-base font-['MadaniArabic-Medium']">
+            Product Images: <span className="text-red-500">*</span>
+            <span className="text-sm text-gray-500 ml-2">(max 10, first is primary)</span>
+          </div>
           <div className="h-56 flex flex-wrap gap-4 content-start">
             {[0, 1, 2, 3, 4].map((index) => (
               <div key={index} className="w-24 h-24 relative overflow-hidden">
@@ -173,118 +272,266 @@ const AddListingView: React.FC<AddListingViewProps> = ({
                 <button
                   type="button"
                   onClick={() => handleImageSelect(index)}
-                  disabled={isUploading}
+                  disabled={isUploadingImage}
                   className="w-24 h-24 rounded-[10px] object-cover cursor-pointer hover:opacity-80 transition-opacity disabled:opacity-50"
                 >
-                  {uploadedImages[index] ? (
-                    <img className="w-24 h-24 rounded-[10px] object-cover" src={uploadedImages[index]} alt={`Upload ${index + 1}`} />
+                  {images[index] ? (
+                    <img
+                      className="w-24 h-24 rounded-[10px] object-cover"
+                      src={images[index].url}
+                      alt={images[index].alt || `Product ${index + 1}`}
+                    />
                   ) : (
                     <div className="w-24 h-24 bg-gray-200 rounded-[10px] flex items-center justify-center">
-                      <span className="text-gray-400 text-xs">+</span>
+                      {uploadingIndex === index ? (
+                        <span className="text-gray-400 text-xs">Uploading...</span>
+                      ) : (
+                        <span className="text-gray-400 text-2xl">+</span>
+                      )}
                     </div>
                   )}
                 </button>
-                {uploadedImages[index] && (
-                  <div className="w-6 h-6 absolute top-[5px] right-[5px] bg-brand-colors-SteamWhite rounded-full shadow-[0px_4px_30px_5px_rgba(0,0,0,0.08)] flex justify-center items-center">
-                    <img src="/edit icon.svg" alt="Edit" className="w-4 h-4" />
-                  </div>
+                {images[index] && (
+                  <>
+                    {images[index].isPrimary && (
+                      <div className="absolute bottom-1 left-1 bg-brand-colors-SproutGreen text-white text-xs px-1 rounded">
+                        Primary
+                      </div>
+                    )}
+                    <div className="absolute top-1 right-1 flex gap-1">
+                      {!images[index].isPrimary && (
+                        <button
+                          type="button"
+                          onClick={() => handleSetPrimary(index)}
+                          className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs hover:bg-blue-600"
+                          title="Set as primary"
+                        >
+                          ★
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveImage(index)}
+                        className="w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-white text-xs hover:bg-red-600"
+                        title="Remove image"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  </>
                 )}
               </div>
             ))}
           </div>
-          {isUploading && (
-            <p className="text-sm text-brand-colors-SproutGreen mt-2">Uploading image...</p>
-          )}
         </div>
 
         {/* Produce Name */}
         <div className="w-[474px] mb-5 flex flex-col gap-3">
-          <div className="px-2.5 text-brand-colors-RootBlack text-base font-['MadaniArabic-Medium']">Produce Name:</div>
+          <div className="px-2.5 text-brand-colors-RootBlack text-base font-['MadaniArabic-Medium']">
+            Produce Name: <span className="text-red-500">*</span>
+          </div>
           <input
             type="text"
-            value={addFormData?.title || ''}
-            onChange={(e) => handleAddFormChange('title', e.target.value)}
+            value={formData.produceName}
+            onChange={(e) => handleFieldChange('produceName', e.target.value)}
             className="h-12 px-6 py-3 bg-black/5 rounded-[30px] outline outline-2 outline-offset-[-2px] outline-black/5 text-brand-colors-RootBlack text-base font-['MadaniArabic-Regular']"
+            placeholder="e.g., Fresh Tomatoes"
           />
         </div>
 
-        {/* Choose Category */}
+        {/* Category */}
         <div className="w-[474px] mb-5 flex flex-col gap-3">
-          <div className="px-2.5 text-brand-colors-RootBlack text-base font-['MadaniArabic-Medium']">Choose category:</div>
+          <div className="px-2.5 text-brand-colors-RootBlack text-base font-['MadaniArabic-Medium']">
+            Category: <span className="text-red-500">*</span>
+          </div>
           <div className="relative">
             <select
-              value={addFormData?.category || ''}
-              onChange={(e) => handleAddFormChange('category', e.target.value)}
+              value={formData.category}
+              onChange={(e) => handleFieldChange('category', e.target.value)}
               className="w-full h-12 px-6 py-3 bg-black/5 rounded-[30px] outline outline-2 outline-offset-[-2px] outline-black/5 text-brand-colors-RootBlack text-base font-['MadaniArabic-Regular'] appearance-none cursor-pointer"
             >
               <option value="">Select a category</option>
-              <option value="Vegetables">Vegetables</option>
-              <option value="Fruits">Fruits</option>
-              <option value="Grains">Grains</option>
-              <option value="Tubers">Tubers</option>
-              <option value="Legumes">Legumes</option>
-              <option value="Spices">Spices</option>
-              <option value="Leafy Greens">Leafy Greens</option>
+              {Object.entries(CATEGORY_DISPLAY_NAMES).map(([value, label]) => (
+                <option key={value} value={value}>{label}</option>
+              ))}
             </select>
             <div className="absolute right-6 top-1/2 transform -translate-y-1/2 pointer-events-none">
-              <img 
-                src="/chevron-down-2.svg" 
-                alt="Dropdown" 
-                className="w-4 h-4"
-              />
+              <img src="/chevron-down-2.svg" alt="Dropdown" className="w-4 h-4" />
             </div>
           </div>
         </div>
 
-        {/* Price per unit */}
-        <div className="w-[474px] mb-5 flex flex-col gap-3">
-          <div className="px-2.5 text-brand-colors-RootBlack text-base font-['MadaniArabic-Medium']">Price per unit:</div>
-          <input
-            type="text"
-            value={addFormData?.price || ''}
-            onChange={(e) => handleAddFormChange('price', e.target.value)}
-            className="h-12 px-6 py-3 bg-black/5 rounded-[30px] outline outline-2 outline-offset-[-2px] outline-black/5 text-brand-colors-RootBlack text-base font-['MadaniArabic-Regular']"
-          />
-        </div>
-
-        {/* Produce Description */}
-        <div className="w-[474px] mb-5 flex flex-col gap-3">
-          <div className="px-2.5 text-brand-colors-RootBlack text-base font-['MadaniArabic-Medium']">Produce Description:</div>
-          <textarea
-            value={addFormData?.description || ''}
-            onChange={(e) => handleAddFormChange('description', e.target.value)}
-            className="h-20 px-6 py-3 bg-black/5 rounded-[30px] outline outline-2 outline-offset-[-2px] outline-black/5 text-brand-colors-RootBlack text-base font-['MadaniArabic-Regular'] resize-none"
-          />
-        </div>
-
-        {/* Select Address */}
-        <div className="w-[474px] mb-20 flex flex-col gap-5">
-          <div className="px-2.5 text-brand-colors-RootBlack text-base font-['MadaniArabic-Medium']">Select address:</div>
-          <div className="px-6 py-4 bg-black/5 rounded-[30px] outline outline-2 outline-offset-[-2px] outline-black/5 flex flex-col gap-5 relative">
-            <div className="flex items-center gap-1">
-              <img className="w-6 h-6" src="/location-icon.svg" alt="Location" />
-              <input
-                type="text"
-                value={addFormData?.location || ''}
-                onChange={(e) => handleAddFormChange('location', e.target.value)}
-                className="flex-1 bg-transparent text-brand-colors-RootBlack text-base font-['MadaniArabic-Medium'] outline-none"
-              />
+        {/* Price and Unit */}
+        <div className="w-[474px] mb-5 flex gap-4">
+          <div className="flex-1 flex flex-col gap-3">
+            <div className="px-2.5 text-brand-colors-RootBlack text-base font-['MadaniArabic-Medium']">
+              Unit Price (₦): <span className="text-red-500">*</span>
             </div>
-            <div className="flex flex-col gap-3.5">
-              <div className="text-brand-colors-RootBlack text-base font-['MadaniArabic-Medium']">Farm Address:</div>
-              <input
-                type="text"
-                value={addFormData?.farmAddress || ''}
-                onChange={(e) => handleAddFormChange('farmAddress', e.target.value)}
-                className="bg-transparent text-brand-colors-rootgrey text-base font-['MadaniArabic-Medium'] outline-none"
-              />
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={formData.unitPrice}
+              onChange={(e) => handleFieldChange('unitPrice', e.target.value)}
+              className="h-12 px-6 py-3 bg-black/5 rounded-[30px] outline outline-2 outline-offset-[-2px] outline-black/5 text-brand-colors-RootBlack text-base font-['MadaniArabic-Regular']"
+              placeholder="0.00"
+            />
+          </div>
+          <div className="flex-1 flex flex-col gap-3">
+            <div className="px-2.5 text-brand-colors-RootBlack text-base font-['MadaniArabic-Medium']">
+              Unit:
             </div>
-            <div className="absolute right-[16px] top-[16px]">
-              <div className="w-6 h-6 relative overflow-hidden">
-                <div className="w-3 h-1.5 absolute left-[6px] top-[9px] outline outline-2 outline-offset-[-1px] outline-brand-colors-RootBlack"></div>
+            <div className="relative">
+              <select
+                value={formData.unitOfMeasurement}
+                onChange={(e) => handleFieldChange('unitOfMeasurement', e.target.value)}
+                className="w-full h-12 px-6 py-3 bg-black/5 rounded-[30px] outline outline-2 outline-offset-[-2px] outline-black/5 text-brand-colors-RootBlack text-base font-['MadaniArabic-Regular'] appearance-none cursor-pointer"
+              >
+                {Object.entries(UNIT_DISPLAY_NAMES).map(([value, label]) => (
+                  <option key={value} value={value}>{label}</option>
+                ))}
+              </select>
+              <div className="absolute right-6 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                <img src="/chevron-down-2.svg" alt="Dropdown" className="w-4 h-4" />
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Quantity and Minimum Order */}
+        <div className="w-[474px] mb-5 flex gap-4">
+          <div className="flex-1 flex flex-col gap-3">
+            <div className="px-2.5 text-brand-colors-RootBlack text-base font-['MadaniArabic-Medium']">
+              Quantity Available:
+            </div>
+            <input
+              type="number"
+              min="0"
+              value={formData.quantityAvailable}
+              onChange={(e) => handleFieldChange('quantityAvailable', e.target.value)}
+              className="h-12 px-6 py-3 bg-black/5 rounded-[30px] outline outline-2 outline-offset-[-2px] outline-black/5 text-brand-colors-RootBlack text-base font-['MadaniArabic-Regular']"
+              placeholder="e.g., 500"
+            />
+          </div>
+          <div className="flex-1 flex flex-col gap-3">
+            <div className="px-2.5 text-brand-colors-RootBlack text-base font-['MadaniArabic-Medium']">
+              Min. Order Qty:
+            </div>
+            <input
+              type="number"
+              min="1"
+              value={formData.minimumOrderQuantity}
+              onChange={(e) => handleFieldChange('minimumOrderQuantity', e.target.value)}
+              className="h-12 px-6 py-3 bg-black/5 rounded-[30px] outline outline-2 outline-offset-[-2px] outline-black/5 text-brand-colors-RootBlack text-base font-['MadaniArabic-Regular']"
+              placeholder="1"
+            />
+          </div>
+        </div>
+
+        {/* Description */}
+        <div className="w-[474px] mb-5 flex flex-col gap-3">
+          <div className="px-2.5 text-brand-colors-RootBlack text-base font-['MadaniArabic-Medium']">
+            Description: <span className="text-red-500">*</span>
+          </div>
+          <textarea
+            value={formData.produceDescription}
+            onChange={(e) => handleFieldChange('produceDescription', e.target.value)}
+            className="h-24 px-6 py-3 bg-black/5 rounded-[20px] outline outline-2 outline-offset-[-2px] outline-black/5 text-brand-colors-RootBlack text-base font-['MadaniArabic-Regular'] resize-none"
+            placeholder="Describe your product in detail..."
+          />
+        </div>
+
+        {/* Farm Address */}
+        <div className="w-[474px] mb-5 flex flex-col gap-3">
+          <div className="px-2.5 text-brand-colors-RootBlack text-base font-['MadaniArabic-Medium']">
+            Farm Address: <span className="text-red-500">*</span>
+          </div>
+          <div className="relative">
+            {isLoadingAddresses ? (
+              <div className="h-12 px-6 py-3 bg-black/5 rounded-[30px] flex items-center text-gray-500">
+                Loading addresses...
+              </div>
+            ) : farmAddresses.length === 0 ? (
+              <div className="h-12 px-6 py-3 bg-yellow-50 rounded-[30px] flex items-center text-yellow-700 text-sm">
+                No farm addresses found. Please create one in your profile settings.
+              </div>
+            ) : (
+              <select
+                value={formData.farmAddress}
+                onChange={(e) => handleFieldChange('farmAddress', e.target.value)}
+                className="w-full h-12 px-6 py-3 bg-black/5 rounded-[30px] outline outline-2 outline-offset-[-2px] outline-black/5 text-brand-colors-RootBlack text-base font-['MadaniArabic-Regular'] appearance-none cursor-pointer"
+              >
+                <option value="">Select a farm address</option>
+                {farmAddresses.map((addr) => (
+                  <option key={addr._id} value={addr._id}>
+                    {addr.addressName} - {addr.city}, {addr.state}
+                  </option>
+                ))}
+              </select>
+            )}
+            {!isLoadingAddresses && farmAddresses.length > 0 && (
+              <div className="absolute right-6 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                <img src="/chevron-down-2.svg" alt="Dropdown" className="w-4 h-4" />
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Dates */}
+        <div className="w-[474px] mb-5 flex gap-4">
+          <div className="flex-1 flex flex-col gap-3">
+            <div className="px-2.5 text-brand-colors-RootBlack text-base font-['MadaniArabic-Medium']">
+              Harvest Date:
+            </div>
+            <input
+              type="date"
+              value={formData.harvestDate}
+              onChange={(e) => handleFieldChange('harvestDate', e.target.value)}
+              className="h-12 px-6 py-3 bg-black/5 rounded-[30px] outline outline-2 outline-offset-[-2px] outline-black/5 text-brand-colors-RootBlack text-base font-['MadaniArabic-Regular']"
+            />
+          </div>
+          <div className="flex-1 flex flex-col gap-3">
+            <div className="px-2.5 text-brand-colors-RootBlack text-base font-['MadaniArabic-Medium']">
+              Expiry Date:
+            </div>
+            <input
+              type="date"
+              value={formData.expiryDate}
+              onChange={(e) => handleFieldChange('expiryDate', e.target.value)}
+              className="h-12 px-6 py-3 bg-black/5 rounded-[30px] outline outline-2 outline-offset-[-2px] outline-black/5 text-brand-colors-RootBlack text-base font-['MadaniArabic-Regular']"
+            />
+          </div>
+        </div>
+
+        {/* Organic Certified */}
+        <div className="w-[474px] mb-5 flex items-center gap-3">
+          <input
+            type="checkbox"
+            id="organicCertified"
+            checked={formData.organicCertified}
+            onChange={(e) => handleFieldChange('organicCertified', e.target.checked)}
+            className="w-5 h-5 accent-brand-colors-SproutGreen"
+          />
+          <label
+            htmlFor="organicCertified"
+            className="text-brand-colors-RootBlack text-base font-['MadaniArabic-Medium'] cursor-pointer"
+          >
+            Organic Certified
+          </label>
+        </div>
+
+        {/* Tags */}
+        <div className="w-[474px] mb-20 flex flex-col gap-3">
+          <div className="px-2.5 text-brand-colors-RootBlack text-base font-['MadaniArabic-Medium']">
+            Tags: <span className="text-sm text-gray-500">(comma separated)</span>
+          </div>
+          <input
+            type="text"
+            value={formData.tags}
+            onChange={(e) => handleFieldChange('tags', e.target.value)}
+            className="h-12 px-6 py-3 bg-black/5 rounded-[30px] outline outline-2 outline-offset-[-2px] outline-black/5 text-brand-colors-RootBlack text-base font-['MadaniArabic-Regular']"
+            placeholder="organic, fresh, local"
+          />
         </div>
       </div>
 
@@ -293,10 +540,11 @@ const AddListingView: React.FC<AddListingViewProps> = ({
         <div className="bg-white/20 rounded-full p-2.5 flex items-center gap-1.5">
           <button
             onClick={handleSaveNewListing}
-            disabled={isSaving || isUploading}
-            className="w-48 min-w-40 min-h-10 px-6 py-3 bg-brand-colors-SproutGreen rounded-[30px] flex justify-center items-center disabled:opacity-50 disabled:cursor-not-allowed">
+            disabled={isSaving || isUploadingImage}
+            className="w-48 min-w-40 min-h-10 px-6 py-3 bg-brand-colors-SproutGreen rounded-[30px] flex justify-center items-center disabled:opacity-50 disabled:cursor-not-allowed"
+          >
             <span className="text-brand-colors-SteamWhite text-base font-['MadaniArabic-Bold']">
-              {isSaving ? 'Saving...' : 'Save'}
+              {isSaving ? 'Creating...' : 'Create Product'}
             </span>
           </button>
           <button
@@ -306,7 +554,7 @@ const AddListingView: React.FC<AddListingViewProps> = ({
           >
             <img
               src="/delete icon.svg"
-              alt="Delete"
+              alt="Cancel"
               className="w-5 h-5 group-hover:opacity-80"
               style={{ filter: 'invert(23%) sepia(89%) saturate(7495%) hue-rotate(4deg) brightness(101%) contrast(107%)' }}
             />
@@ -316,10 +564,10 @@ const AddListingView: React.FC<AddListingViewProps> = ({
 
       {/* Custom Scroll Indicator */}
       <div className="w-[5px] h-[500px] right-[10px] top-[100px] absolute bg-gray-200 rounded-full z-10">
-        <div 
+        <div
           className="w-[5px] h-14 bg-brand-colors-SproutGreen rounded-full transition-all duration-150"
           style={{
-            transform: `translateY(${addScrollPosition * (500 - 56)}px)`
+            transform: `translateY(${scrollPosition * (500 - 56)}px)`
           }}
         ></div>
       </div>

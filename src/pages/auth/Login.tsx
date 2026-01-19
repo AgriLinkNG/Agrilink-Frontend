@@ -2,6 +2,12 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { authService } from '@/services/auth/authService';
 import { getCurrentUserType } from '@/services/auth/tokenStorage';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 const EyeIcon: React.FC<{ isVisible: boolean }> = ({ isVisible }) => (
   <img 
@@ -222,11 +228,11 @@ const Login: React.FC = () => {
               </div>
 
               {/* Remember Me and Forgot Password */}
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0">
                 <div className="flex items-center gap-2">
-                  <input 
-                    type="checkbox" 
-                    id="rememberMe" 
+                  <input
+                    type="checkbox"
+                    id="rememberMe"
                     checked={rememberMe}
                     onChange={(e) => setRememberMe(e.target.checked)}
                     className="w-4 h-4 accent-brand-colors-SproutGreen"
@@ -235,13 +241,13 @@ const Login: React.FC = () => {
                     Remember me
                   </label>
                 </div>
-                <div className="flex items-center gap-1">
-                  <span className="text-brand-colors-SteamWhite text-base font-normal font-['MadaniArabic-Medium']">
+                <div className="flex items-center gap-1 flex-wrap">
+                  <span className="text-brand-colors-SteamWhite text-sm sm:text-base font-normal font-['MadaniArabic-Medium']">
                     Forgot your password?
                   </span>
-                  <Link 
-                    to="/forgot-password" 
-                    className="text-brand-colors-RootBlack text-base font-normal font-['MadaniArabic-Medium'] hover:underline"
+                  <Link
+                    to="/forgot-password"
+                    className="text-brand-colors-RootBlack text-sm sm:text-base font-normal font-['MadaniArabic-Medium'] hover:underline"
                   >
                     Click Here
                   </Link>
@@ -280,29 +286,76 @@ const Login: React.FC = () => {
             <div>
               <p className="text-center text-sm mb-10">
                 <span style={{
-                  color: 'white', 
-                  fontSize: 16, 
-                  fontFamily: 'MadaniArabic-Medium', 
-                  fontWeight: '400', 
+                  color: 'white',
+                  fontSize: 16,
+                  fontFamily: 'MadaniArabic-Medium',
+                  fontWeight: '400',
                   wordWrap: 'break-word'
                 }}>Don't have an account?</span>
               </p>
-              
-              <div className="flex gap-3">
-                <Link 
-                  to="/farmers-signup" 
-                  className="flex-1 h-10 bg-brand-colors-HarvestMist rounded-[30px] flex items-center justify-center text-brand-colors-RootBlack text-base font-normal font-['MadaniArabic-Bold'] hover:bg-brand-colors-SproutGreen hover:text-white transition-colors"
-                >
-                  Sign up as Farmer
-                </Link>
-                
-                <Link 
-                  to="/buyer-signup" 
-                  className="flex-1 h-10 bg-brand-colors-HarvestMist rounded-[30px] flex items-center justify-center text-brand-colors-RootBlack text-base font-normal font-['MadaniArabic-Bold'] hover:bg-brand-colors-SproutGreen hover:text-white transition-colors"
-                >
-                  Sign up as Buyer
-                </Link>
-              </div>
+
+              <TooltipProvider>
+                <div className="flex flex-col sm:flex-row gap-3">
+
+                  {/* Sign up as Farmer - DISABLED */}
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div
+                        className="flex-1 inline-flex items-center justify-center"
+                        style={{
+                          height: '44px',
+                          borderRadius: '30px',
+                          background: 'hsl(var(--brand-colors-HarvestMist))',
+                          color: 'black',
+                          fontFamily: 'MadaniArabic-Bold',
+                          fontSize: '14px',
+                          opacity: 0.6,
+                          cursor: 'not-allowed',
+                        }}
+                      >
+                        Sign up as Farmer
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Public signups closed. Contact admin for access.</p>
+                    </TooltipContent>
+                  </Tooltip>
+
+                  {/* Sign up as Buyer - DISABLED */}
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div
+                        className="flex-1 inline-flex items-center justify-center"
+                        style={{
+                          height: '44px',
+                          borderRadius: '30px',
+                          background: 'hsl(var(--brand-colors-HarvestMist))',
+                          color: 'black',
+                          fontFamily: 'MadaniArabic-Bold',
+                          fontSize: '14px',
+                          opacity: 0.6,
+                          cursor: 'not-allowed',
+                        }}
+                      >
+                        Sign up as Buyer
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Public signups closed. Contact admin for access.</p>
+                    </TooltipContent>
+                  </Tooltip>
+
+                </div>
+              </TooltipProvider>
+
+              {/* Add Waitlist Link */}
+              <Link
+                to="/waitlist"
+                className="inline-block mt-4 text-green-600 hover:text-green-700 text-sm w-full text-center"
+                style={{ fontFamily: 'MadaniArabic-Medium' }}
+              >
+                Join our waitlist to be notified when registration reopens →
+              </Link>
             </div>
           </div>
         </div>

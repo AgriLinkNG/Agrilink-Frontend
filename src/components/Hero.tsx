@@ -1,5 +1,11 @@
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 const Hero = () => {
 
@@ -43,66 +49,73 @@ const Hero = () => {
           </p>
 
           {/* CTA Buttons */}
-          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-4 sm:mb-12 w-full sm:w-auto">
-            <Link to="/farmers-signup" className="w-full sm:w-auto">
-              <Button
-                size="lg"
-                className="w-full sm:w-[200px] bg-primary text-primary-foreground hover:bg-[hsl(var(--brand-colors-SoilBlush))] transition-colors duration-200"
-                style={{
-                  height: '60px',
-                  gap: '10px',
-                  opacity: 1,
-                  borderRadius: '30px',
-                  paddingTop: '12px',
-                  paddingRight: '24px',
-                  paddingBottom: '12px',
-                  paddingLeft: '24px',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  display: 'inline-flex',
-                  fontSize: '14px',
-                  fontFamily: 'MadaniArabic-Bold',
-                  fontWeight: '400'
-                }}
-              >
-                Farmers Sign Up
-              </Button>
-            </Link>
-            <Link to="/buyer-signup" className="w-full sm:w-auto">
-              <Button
-                variant="outline"
-                size="lg"
-                className="w-full sm:w-[200px] text-black border-white transition-colors duration-200"
-                onMouseEnter={(e) => {
-                  (e.target as HTMLElement).style.background = 'hsl(var(--brand-colors-SoilBlush))';
-                  (e.target as HTMLElement).style.color = 'white';
-                }}
-                onMouseLeave={(e) => {
-                  (e.target as HTMLElement).style.background = 'hsl(var(--brand-colors-HarvestMist, 114 88% 94%))';
-                  (e.target as HTMLElement).style.color = 'black';
-                }}
-                style={{
-                  height: '60px',
-                  gap: '10px',
-                  opacity: 1,
-                  borderRadius: '30px',
-                  paddingTop: '12px',
-                  paddingRight: '24px',
-                  paddingBottom: '12px',
-                  paddingLeft: '24px',
-                  background: 'hsl(var(--brand-colors-HarvestMist, 114 88% 94%))',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  display: 'inline-flex',
-                  fontSize: '14px',
-                  fontFamily: 'MadaniArabic-Bold',
-                  fontWeight: '400'
-                }}
-              >
-                Buyers Sign Up
-              </Button>
-            </Link>
-          </div>
+          <TooltipProvider>
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-4 sm:mb-12 w-full sm:w-auto">
+
+              {/* Farmers Sign Up - DISABLED */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div
+                    className="inline-flex items-center justify-center w-full sm:w-[200px]"
+                    style={{
+                      height: '60px',
+                      paddingLeft: '24px',
+                      paddingRight: '24px',
+                      borderRadius: '30px',
+                      background: 'hsl(var(--brand-colors-SproutGreen))',
+                      color: 'white',
+                      fontFamily: 'MadaniArabic-Bold',
+                      fontSize: '14px',
+                      opacity: 0.6,
+                      cursor: 'not-allowed',
+                    }}
+                  >
+                    Farmers Sign Up
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent
+                  side="bottom"
+                  className="bg-gray-900 text-white px-4 py-2 rounded-lg text-sm max-w-xs"
+                  style={{ fontFamily: 'MadaniArabic-Medium' }}
+                >
+                  <p>Public registration is currently closed.</p>
+                  <p className="text-xs mt-1">Contact admin for access or login if you have an account.</p>
+                </TooltipContent>
+              </Tooltip>
+
+              {/* Buyers Sign Up - DISABLED */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div
+                    className="inline-flex items-center justify-center w-full sm:w-[200px]"
+                    style={{
+                      height: '60px',
+                      paddingLeft: '24px',
+                      paddingRight: '24px',
+                      borderRadius: '30px',
+                      background: 'hsl(var(--brand-colors-HarvestMist))',
+                      color: 'black',
+                      fontFamily: 'MadaniArabic-Bold',
+                      fontSize: '14px',
+                      opacity: 0.6,
+                      cursor: 'not-allowed',
+                    }}
+                  >
+                    Buyers Sign Up
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent
+                  side="bottom"
+                  className="bg-gray-900 text-white px-4 py-2 rounded-lg text-sm max-w-xs"
+                  style={{ fontFamily: 'MadaniArabic-Medium' }}
+                >
+                  <p>Public registration is currently closed.</p>
+                  <p className="text-xs mt-1">Contact admin for access or login if you have an account.</p>
+                </TooltipContent>
+              </Tooltip>
+
+            </div>
+          </TooltipProvider>
 
         </div>
       </div>

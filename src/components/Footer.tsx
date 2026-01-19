@@ -3,6 +3,12 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import agrilinkLogo from '/agrilink-logo.webp'; // Corrected import for Vite
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 const Footer = () => {
   return (
@@ -16,46 +22,61 @@ const Footer = () => {
           <p className="text-gray-300 mb-8 break-words" style={{ fontFamily: 'MadaniArabic-Medium', fontWeight: 400, fontStyle: 'normal', fontSize: '14px', leadingTrim: 'cap-height', lineHeight: '24px', letterSpacing: '0%' }}>
             At Agrilink, we're committed to bridging the gap between farmers and buyers through direct, transparent, and stress-free trade. We're building a smarter agricultural economy, one fresh connection at a time.
           </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center md:justify-start space-y-4 sm:space-y-0 sm:space-x-4">
-            <Link to="/farmers-signup">
-              <button 
-                className="bg-[hsl(var(--brand-colors-SproutGreen))] text-white font-bold hover:bg-[hsl(var(--brand-colors-SoilBlush))] active:bg-[hsl(var(--brand-colors-SoilBlush))] transition-colors"
-                style={{
-                  width: '200px',
-                  height: '60px',
-                  minWidth: '200px',
-                  gap: '10px',
-                  opacity: 1,
-                  borderRadius: '30px',
-                  paddingTop: '12px',
-                  paddingRight: '24px',
-                  paddingBottom: '12px',
-                  paddingLeft: '24px'
-                }}
-              >
-                Farmers Sign Up
-              </button>
-            </Link>
-            <Link to="/buyer-signup">
-              <button 
-                className="bg-gray-200 text-gray-900 font-bold hover:bg-[hsl(var(--brand-colors-SoilBlush))] hover:text-white active:bg-[hsl(var(--brand-colors-SoilBlush))] active:text-white transition-colors"
-                style={{
-                  width: '200px',
-                  height: '60px',
-                  minWidth: '200px',
-                  gap: '10px',
-                  opacity: 1,
-                  borderRadius: '30px',
-                  paddingTop: '12px',
-                  paddingRight: '24px',
-                  paddingBottom: '12px',
-                  paddingLeft: '24px'
-                }}
-              >
-                Buyers Sign Up
-              </button>
-            </Link>
-          </div>
+          <TooltipProvider>
+            <div className="flex flex-col sm:flex-row items-center justify-center md:justify-start space-y-4 sm:space-y-0 sm:space-x-4">
+
+              {/* Farmers Sign Up - DISABLED */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div
+                    className="inline-flex items-center justify-center"
+                    style={{
+                      width: '200px',
+                      height: '60px',
+                      borderRadius: '30px',
+                      background: 'hsl(var(--brand-colors-SproutGreen))',
+                      color: 'white',
+                      fontFamily: 'MadaniArabic-Bold',
+                      fontSize: '14px',
+                      opacity: 0.6,
+                      cursor: 'not-allowed',
+                    }}
+                  >
+                    Farmers Sign Up
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Contact admin for signup access</p>
+                </TooltipContent>
+              </Tooltip>
+
+              {/* Buyers Sign Up - DISABLED */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div
+                    className="inline-flex items-center justify-center"
+                    style={{
+                      width: '200px',
+                      height: '60px',
+                      borderRadius: '30px',
+                      background: 'rgb(229 231 235)',
+                      color: 'black',
+                      fontFamily: 'MadaniArabic-Bold',
+                      fontSize: '14px',
+                      opacity: 0.6,
+                      cursor: 'not-allowed',
+                    }}
+                  >
+                    Buyers Sign Up
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Contact admin for signup access</p>
+                </TooltipContent>
+              </Tooltip>
+
+            </div>
+          </TooltipProvider>
         </div>
       </div>
 
@@ -93,8 +114,7 @@ const Footer = () => {
         <div className="md:col-span-2 text-center">
           <h4 className="font-bold text-lg mb-4" style={{ fontFamily: 'MadaniArabic-Bold', fontWeight: 400, fontStyle: 'normal', fontSize: '24px', leadingTrim: 'cap-height', lineHeight: '100%', letterSpacing: '0%' }}>Quick Links</h4>
           <ul className="text-gray-400 text-sm space-y-2 leading-relaxed" style={{ fontFamily: 'MadaniArabic-Medium', fontWeight: 400, fontStyle: 'normal', fontSize: '14px', leadingTrim: 'cap-height', lineHeight: '24px', letterSpacing: '0%' }}>
-            <li><Link to="/farmers-signup" className="hover:text-[hsl(var(--brand-colors-SoilBlush))] transition-colors">Farmers Sign Up</Link></li>
-            <li><Link to="/buyer-signup" className="hover:text-[hsl(var(--brand-colors-SoilBlush))] transition-colors">Buyers Sign Up</Link></li>
+            <li><Link to="/waitlist" className="hover:text-[hsl(var(--brand-colors-SoilBlush))] transition-colors">Join Waitlist</Link></li>
             <li><button className="hover:text-[hsl(var(--brand-colors-SoilBlush))] transition-colors text-left bg-transparent border-none p-0 cursor-pointer">How It Works</button></li>
             <li><button className="hover:text-[hsl(var(--brand-colors-SoilBlush))] transition-colors text-left bg-transparent border-none p-0 cursor-pointer">About Us</button></li>
             <li><button className="hover:text-[hsl(var(--brand-colors-SoilBlush))] transition-colors text-left bg-transparent border-none p-0 cursor-pointer">Contact Us</button></li>

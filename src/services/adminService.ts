@@ -1,6 +1,6 @@
 // Admin service for Team Delta Defenders Backend API
 import { api, ApiResponse } from './api';
-import { Product } from './productsService';
+import { Listing } from '@/types/listings';
 
 export interface User {
   id: string;
@@ -60,9 +60,9 @@ export class AdminService {
   async updateProductStatus(productId: string, action: 'approve' | 'remove', data?: {
     reason?: string;
     status?: string;
-  }): Promise<Product> {
+  }): Promise<Listing> {
     try {
-      const response = await api.put<Product>(`/admin/products/${productId}`, {
+      const response = await api.put<Listing>(`/admin/products/${productId}`, {
         action,
         ...data
       });
@@ -82,9 +82,9 @@ export class AdminService {
     page?: number;
     limit?: number;
     status?: string;
-  }): Promise<Product[]> {
+  }): Promise<Listing[]> {
     try {
-      const response = await api.get<Product[]>('/admin/products', params);
+      const response = await api.get<Listing[]>('/admin/products', params);
 
       if (response.success && response.data) {
         return response.data;

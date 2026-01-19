@@ -3,7 +3,9 @@ import DeleteListingModal from './DeleteListingModal';
 import EditListingView from './EditListingView';
 import AddListingView from './AddListingView';
 import NotificationDropdown from '../ui/NotificationDropdown';
-import { productsService, Product } from '@/services/productsService';
+import { Listing, ProductImage } from '@/types/listings';
+import { useMyListings, useDeleteListing } from '@/hooks/useListingsQuery';
+import { LoadingSpinner, ErrorFallback, EmptyState } from '@/components/common';
 
 interface MyListingsProps {
   onDeleteListing: (id: number) => void;
@@ -13,8 +15,9 @@ interface MyListingsProps {
   onProfileClick?: () => void;
 }
 
-interface Listing {
-  id: number;
+// Local display type for backward compatibility with UI
+interface DisplayListing {
+  id: string;
   title: string;
   description: string;
   price: string;
@@ -25,6 +28,8 @@ interface Listing {
   farmAddress: string;
   averageMarketPrice: string;
   images: string[];
+  // Reference to original listing for API operations
+  _original?: Listing;
 }
 
 // Fallback data for when API fails or no products
@@ -170,64 +175,68 @@ const MyListings: React.FC<MyListingsProps> = ({
 }) => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [selectedSort, setSelectedSort] = useState("Latest Listing");
-  const [selectedListing, setSelectedListing] = useState<Listing | null>(null);
+  const [selectedListing, setSelectedListing] = useState<DisplayListing | null>(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [scrollPosition, setScrollPosition] = useState(0);
   const [editScrollPosition, setEditScrollPosition] = useState(0);
   const [addScrollPosition, setAddScrollPosition] = useState(0);
   const [isEditMode, setIsEditMode] = useState(false);
   const [isAddMode, setIsAddMode] = useState(false);
-  const [editFormData, setEditFormData] = useState<Listing | null>(null);
-  const [addFormData, setAddFormData] = useState<Listing | null>(null);
+  const [editFormData, setEditFormData] = useState<DisplayListing | null>(null);
+  const [addFormData, setAddFormData] = useState<DisplayListing | null>(null);
   const [showDeletePopup, setShowDeletePopup] = useState(false);
-  const [listingToDelete, setListingToDelete] = useState<Listing | null>(null);
+  const [listingToDelete, setListingToDelete] = useState<DisplayListing | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [listingsData, setListingsData] = useState<Listing[]>(fallbackListingsData);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
+
+  // React Query hooks for data fetching and mutations
+  const { data: listingsResponse, isLoading, error: fetchError, refetch } = useMyListings();
+  const deleteListingMutation = useDeleteListing();
+
+  // Convert API listings to display format
+  const listingsData: DisplayListing[] = React.useMemo(() => {
+    if (!listingsResponse?.listings?.length) {
+      return fallbackListingsData as DisplayListing[];
+    }
+    return listingsResponse.listings.map(convertToDisplayListing);
+  }, [listingsResponse]);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const editScrollContainerRef = useRef<HTMLDivElement>(null);
   const addScrollContainerRef = useRef<HTMLDivElement>(null);
 
-  // Convert Product to Listing format
-  const convertProductToListing = (product: Product): Listing => ({
-    id: parseInt(product.id),
-    title: product.name,
-    description: product.description,
-    price: `₦${product.price.toLocaleString()}`,
-    unit: 'Per Unit',
-    location: 'Lagos, Nigeria', // Default location
-    image: product.images?.[0] || '/placeholder-image.jpg',
-    category: product.category,
-    farmAddress: 'Farm Address', // This should come from user profile
-    averageMarketPrice: `₦${(product.price * 1.1).toLocaleString()}`, // 10% markup for market price
-    images: product.images || ['/placeholder-image.jpg']
-  });
+  // Convert API Listing to DisplayListing format for UI
+  const convertToDisplayListing = (listing: Listing): DisplayListing => {
+    const farmAddr = typeof listing.farmAddress === 'object'
+      ? listing.farmAddress
+      : null;
+    const location = farmAddr
+      ? `${farmAddr.city}, ${farmAddr.state}`
+      : 'Nigeria';
+    const address = farmAddr
+      ? `${farmAddr.streetAddress}, ${farmAddr.city}`
+      : 'Farm Address';
 
-  // Fetch listings from API
-  const fetchListings = async () => {
-    setIsLoading(true);
-    try {
-      const products = await productsService.getAllProducts();
-      const listings = products.map(convertProductToListing);
-      setListingsData(listings.length > 0 ? listings : fallbackListingsData);
-    } catch (error) {
-      console.error('Failed to fetch listings:', error);
-      setListingsData(fallbackListingsData);
-    } finally {
-      setIsLoading(false);
-    }
+    return {
+      id: listing._id,
+      title: listing.produceName,
+      description: listing.produceDescription,
+      price: `₦${listing.unitPrice.toLocaleString()}`,
+      unit: `Per ${listing.unitOfMeasurement}`,
+      location,
+      image: listing.images?.[0]?.url || '/placeholder-image.jpg',
+      category: listing.category,
+      farmAddress: address,
+      averageMarketPrice: `₦${(listing.unitPrice * 1.1).toLocaleString()}`,
+      images: listing.images?.map((img: ProductImage) => img.url) || ['/placeholder-image.jpg'],
+      _original: listing,
+    };
   };
 
-  // Fetch listings on component mount
-  useEffect(() => {
-    fetchListings();
-  }, []);
+  // Note: Data fetching is now handled by useMyListings hook (React Query)
 
   const sortOptions = [
     "Latest Listing",
-    "Oldest First", 
+    "Oldest First",
     "Price: Low to High",
     "Price: High to Low",
     "Alphabetical"
@@ -291,7 +300,7 @@ const MyListings: React.FC<MyListingsProps> = ({
   // Handle image navigation
   const handlePreviousImage = () => {
     if (selectedListing) {
-      setCurrentImageIndex(prev => 
+      setCurrentImageIndex(prev =>
         prev === 0 ? selectedListing.images.length - 1 : prev - 1
       );
     }
@@ -299,14 +308,14 @@ const MyListings: React.FC<MyListingsProps> = ({
 
   const handleNextImage = () => {
     if (selectedListing) {
-      setCurrentImageIndex(prev => 
+      setCurrentImageIndex(prev =>
         prev === selectedListing.images.length - 1 ? 0 : prev + 1
       );
     }
   };
 
   // Reset image index when selecting a new listing
-  const handleSelectListing = (listing: Listing) => {
+  const handleSelectListing = (listing: DisplayListing) => {
     setSelectedListing(listing);
     setCurrentImageIndex(0);
     setIsEditMode(false);
@@ -372,12 +381,13 @@ const MyListings: React.FC<MyListingsProps> = ({
   const handleSaveNewListing = async () => {
     setIsAddMode(false);
     setAddFormData(null);
-    // Refresh listings to show the newly added product
-    await fetchListings();
+    // React Query automatically invalidates cache after create mutation
+    // Optionally force refetch:
+    await refetch();
   };
 
   // Handle delete popup
-  const handleDeleteClick = (listing: Listing, event: React.MouseEvent) => {
+  const handleDeleteClick = (listing: DisplayListing, event: React.MouseEvent) => {
     event.stopPropagation();
     setListingToDelete(listing);
     setShowDeletePopup(true);
@@ -385,18 +395,12 @@ const MyListings: React.FC<MyListingsProps> = ({
 
   const handleConfirmDelete = async () => {
     if (listingToDelete) {
-      setIsDeleting(true);
       try {
-        // Delete from backend
-        await productsService.deleteProduct(listingToDelete.id.toString());
+        // Delete using React Query mutation (optimistic update)
+        await deleteListingMutation.mutateAsync(listingToDelete.id);
 
-        // Remove from local state
-        setListingsData(prevListings =>
-          prevListings.filter(listing => listing.id !== listingToDelete.id)
-        );
-
-        // Call parent handler
-        onDeleteListing(listingToDelete.id);
+        // Call parent handler with ID as number for backward compatibility
+        onDeleteListing(parseInt(listingToDelete.id) || 0);
 
         setShowDeletePopup(false);
         setListingToDelete(null);
@@ -408,12 +412,10 @@ const MyListings: React.FC<MyListingsProps> = ({
           setEditFormData(null);
         }
 
-        alert('Product deleted successfully!');
+        // No need to manually update state - React Query handles cache invalidation
       } catch (error) {
         console.error('Failed to delete listing:', error);
         alert('Failed to delete product. Please try again.');
-      } finally {
-        setIsDeleting(false);
       }
     }
   };
@@ -439,73 +441,78 @@ const MyListings: React.FC<MyListingsProps> = ({
       >
         <div className={`${(selectedListing || isAddMode) ? 'w-full sm:w-[528px] grid grid-cols-1 sm:grid-cols-2 gap-5' : 'w-full sm:w-[1048px] flex flex-wrap gap-5'} transition-all duration-300`}>
           {isLoading ? (
-            <div className="w-full py-12 text-center">
-              <p className="text-brand-colors-SproutGreen text-lg font-madani-medium">
-                Loading listings...
-              </p>
-            </div>
+            <LoadingSpinner message="Loading your listings..." size="lg" className="w-full py-12" />
+          ) : fetchError ? (
+            <ErrorFallback
+              error={fetchError}
+              title="Failed to load listings"
+              onRetry={() => refetch()}
+              className="w-full my-6"
+            />
           ) : filteredListings.length === 0 ? (
-            <div className="w-full py-12 text-center">
-              <p className="text-brand-colors-rootgrey text-lg font-madani-medium">
-                {searchQuery ? `No listings found matching "${searchQuery}"` : 'No listings available'}
-              </p>
-            </div>
+            <EmptyState
+              title={searchQuery ? `No listings found` : 'No listings yet'}
+              description={searchQuery ? `No products matching "${searchQuery}"` : 'Start adding your products to reach buyers'}
+              actionLabel={!searchQuery ? 'Add New Product' : undefined}
+              onAction={!searchQuery ? handleAddNewListing : undefined}
+              className="w-full py-12"
+            />
           ) : (
             filteredListings.map((listing) => (
               <div
                 key={listing.id}
                 onClick={() => handleSelectListing(listing)}
                 className="w-60 h-80 relative bg-white rounded-[20px] shadow-[0px_4px_30px_5px_rgba(0,0,0,0.08)] overflow-hidden cursor-pointer hover:shadow-lg transition-shadow">
-            {/* Image Container */}
-            <div className="w-56 h-36 left-[10px] top-[10px] absolute rounded-[10px] overflow-hidden">
-              <img className="w-full h-full object-cover rounded-[10px]" src={listing.image} alt={listing.title} />
-            </div>
-            
-            {/* Title */}
-            <div className="w-56 left-[10px] top-[170px] absolute justify-start text-brand-colors-rootgrey text-base font-madani-medium">
-              {listing.title}
-            </div>
-            
-            {/* Description */}
-            <div className="w-56 h-12 left-[10px] top-[237px] absolute justify-start text-brand-colors-RootBlack text-xs font-madani-light">
-              {listing.description}
-            </div>
-            
-            {/* Price */}
-            <div className="left-[10px] top-[202px] absolute inline-flex justify-start items-baseline gap-1">
-              <div className="justify-start text-brand-colors-RootBlack text-xl font-madani-medium leading-9">
-                {listing.price}
+                {/* Image Container */}
+                <div className="w-56 h-36 left-[10px] top-[10px] absolute rounded-[10px] overflow-hidden">
+                  <img className="w-full h-full object-cover rounded-[10px]" src={listing.image} alt={listing.title} />
+                </div>
+
+                {/* Title */}
+                <div className="w-56 left-[10px] top-[170px] absolute justify-start text-brand-colors-rootgrey text-base font-madani-medium">
+                  {listing.title}
+                </div>
+
+                {/* Description */}
+                <div className="w-56 h-12 left-[10px] top-[237px] absolute justify-start text-brand-colors-RootBlack text-xs font-madani-light">
+                  {listing.description}
+                </div>
+
+                {/* Price */}
+                <div className="left-[10px] top-[202px] absolute inline-flex justify-start items-baseline gap-1">
+                  <div className="justify-start text-brand-colors-RootBlack text-xl font-madani-medium leading-9">
+                    {listing.price}
+                  </div>
+                  <div className="justify-start text-brand-colors-RootBlack text-xs font-madani-light">
+                    {listing.unit}
+                  </div>
+                </div>
+
+                {/* Location */}
+                <div className="left-[10px] top-[298px] absolute flex items-center gap-1">
+                  <img className="w-6 h-6" src="/location-icon.svg" alt="Location" />
+                  <div className="text-brand-colors-RootBlack text-xs font-madani-light">
+                    {listing.location}
+                  </div>
+                </div>
+
+                {/* Delete Icon */}
+                <button
+                  onClick={(e) => handleDeleteClick(listing, e)}
+                  className="p-2.5 left-[188px] top-[15px] absolute bg-white rounded-3xl shadow-[0px_4px_30px_5px_rgba(0,0,0,0.08)] flex items-center hover:bg-red-50 transition-colors group"
+                >
+                  <img
+                    src="/delete icon.svg"
+                    alt="Delete"
+                    className="w-5 h-5 group-hover:opacity-80"
+                    style={{ filter: 'invert(36%) sepia(69%) saturate(2083%) hue-rotate(338deg) brightness(97%) contrast(106%)' }}
+                  />
+                </button>
               </div>
-              <div className="justify-start text-brand-colors-RootBlack text-xs font-madani-light">
-                {listing.unit}
-              </div>
-            </div>
-            
-            {/* Location */}
-            <div className="left-[10px] top-[298px] absolute flex items-center gap-1">
-              <img className="w-6 h-6" src="/location-icon.svg" alt="Location" />
-              <div className="text-brand-colors-RootBlack text-xs font-madani-light">
-                {listing.location}
-              </div>
-            </div>
-            
-              {/* Delete Icon */}
-              <button
-                onClick={(e) => handleDeleteClick(listing, e)}
-                className="p-2.5 left-[188px] top-[15px] absolute bg-white rounded-3xl shadow-[0px_4px_30px_5px_rgba(0,0,0,0.08)] flex items-center hover:bg-red-50 transition-colors group"
-              >
-                <img
-                  src="/delete icon.svg"
-                  alt="Delete"
-                  className="w-5 h-5 group-hover:opacity-80"
-                  style={{ filter: 'invert(36%) sepia(69%) saturate(2083%) hue-rotate(338deg) brightness(97%) contrast(106%)' }}
-                />
-              </button>
-            </div>
             ))
           )}
         </div>
-        
+
         {/* Detail/Edit/Add View - Isolated Component */}
         {(selectedListing || isAddMode) && (
           <div className="sticky w-full sm:w-[514px] h-[724px] top-[20px] bg-white rounded-[20px] shadow-[0px_4px_30px_5px_rgba(0,0,0,0.08)] z-30 flex flex-col overflow-hidden">
@@ -515,16 +522,16 @@ const MyListings: React.FC<MyListingsProps> = ({
                 <div className="text-brand-colors-RootBlack text-base font-['MadaniArabic-Medium']">Upload Image:</div>
               )}
               {isAddMode && (
-                <button 
+                <button
                   onClick={() => {
                     setIsAddMode(false);
                     setAddFormData(null);
                   }}
                   className="p-2.5 bg-white rounded-3xl shadow-[0px_4px_30px_5px_rgba(0,0,0,0.08)] flex items-center justify-center cursor-pointer hover:bg-gray-50 transition-colors"
                 >
-                  <img 
-                    src="/close icon.svg" 
-                    alt="Close" 
+                  <img
+                    src="/close icon.svg"
+                    alt="Close"
                     className="w-5 h-5"
                   />
                 </button>
@@ -535,183 +542,191 @@ const MyListings: React.FC<MyListingsProps> = ({
             {!isEditMode && !isAddMode && selectedListing ? (
               /* Detail View */
               <>
-              <div className="flex-1 px-5 overflow-hidden">
-                <div 
-                  ref={scrollContainerRef}
-                  onScroll={handleScroll}
-                  className="h-full overflow-y-auto pr-2"
-                  style={{ 
-                    scrollbarWidth: 'none', 
-                    msOverflowStyle: 'none'
-                  }}
-                >
-                  <div className="pb-8">
-                  {/* Main Image with Navigation */}
-                  <div className="relative mb-6">
-                    <img className="w-full h-72 rounded-[10px] object-cover" src={selectedListing.images[currentImageIndex]} alt={selectedListing.title} />
-                    
-                    {/* Navigation Arrows and Close Button */}
-                    <div className="absolute inset-0 flex justify-between items-center px-2.5 pointer-events-none">
-                      <button 
-                        onClick={handlePreviousImage}
-                        className="w-12 h-12 bg-white/70 rounded-full flex justify-center items-center pointer-events-auto cursor-pointer hover:bg-white/90 transition-colors"
-                      >
-                        <img 
-                          src="/chevron-left-2.svg" 
-                          alt="Previous" 
-                          className="w-4 h-4"
-                        />
-                      </button>
-                      <button 
-                        onClick={handleNextImage}
-                        className="w-12 h-12 bg-white/70 rounded-full flex justify-center items-center pointer-events-auto cursor-pointer hover:bg-white/90 transition-colors"
-                      >
-                        <img 
-                          src="/chevron-right-2.svg" 
-                          alt="Next" 
-                          className="w-4 h-4"
-                        />
-                      </button>
+                <div className="flex-1 px-5 overflow-hidden">
+                  <div
+                    ref={scrollContainerRef}
+                    onScroll={handleScroll}
+                    className="h-full overflow-y-auto pr-2"
+                    style={{
+                      scrollbarWidth: 'none',
+                      msOverflowStyle: 'none'
+                    }}
+                  >
+                    <div className="pb-8">
+                      {/* Main Image with Navigation */}
+                      <div className="relative mb-6">
+                        <img className="w-full h-72 rounded-[10px] object-cover" src={selectedListing.images[currentImageIndex]} alt={selectedListing.title} />
+
+                        {/* Navigation Arrows and Close Button */}
+                        <div className="absolute inset-0 flex justify-between items-center px-2.5 pointer-events-none">
+                          <button
+                            onClick={handlePreviousImage}
+                            className="w-12 h-12 bg-white/70 rounded-full flex justify-center items-center pointer-events-auto cursor-pointer hover:bg-white/90 transition-colors"
+                          >
+                            <img
+                              src="/chevron-left-2.svg"
+                              alt="Previous"
+                              className="w-4 h-4"
+                            />
+                          </button>
+                          <button
+                            onClick={handleNextImage}
+                            className="w-12 h-12 bg-white/70 rounded-full flex justify-center items-center pointer-events-auto cursor-pointer hover:bg-white/90 transition-colors"
+                          >
+                            <img
+                              src="/chevron-right-2.svg"
+                              alt="Next"
+                              className="w-4 h-4"
+                            />
+                          </button>
+                        </div>
+
+                        {/* Close Button */}
+                        <button
+                          onClick={() => {
+                            setSelectedListing(null);
+                            setIsEditMode(false);
+                            setIsAddMode(false);
+                            setEditFormData(null);
+                            setAddFormData(null);
+                          }}
+                          className="absolute top-2.5 right-2.5 w-10 h-10 bg-white/70 rounded-full flex justify-center items-center pointer-events-auto cursor-pointer hover:bg-white/90 transition-colors z-10"
+                        >
+                          <img
+                            src="/close icon.svg"
+                            alt="Close"
+                            className="w-5 h-5"
+                          />
+                        </button>
+                      </div>
+
+                      {/* Thumbnail Images */}
+                      <div className="flex justify-start items-center gap-5 mb-8">
+                        {selectedListing.images.slice(0, 4).map((img, index) => (
+                          <img
+                            key={index}
+                            onClick={() => setCurrentImageIndex(index)}
+                            className={`w-24 h-24 rounded-[10px] object-cover cursor-pointer transition-all ${currentImageIndex === index
+                              ? 'ring-2 ring-brand-colors-SproutGreen ring-offset-2'
+                              : 'hover:opacity-80'
+                              }`}
+                            src={img}
+                            alt={`${selectedListing.title} ${index + 1}`}
+                          />
+                        ))}
+                      </div>
+
+                      {/* Title */}
+                      <h2 className="text-3xl font-['MadaniArabic-Bold'] text-brand-colors-RootBlack leading-[50px] mb-4">
+                        {selectedListing.title}
+                      </h2>
+
+                      {/* Price */}
+                      <div className="flex items-end gap-1 mb-4">
+                        <span className="text-2xl font-['MadaniArabic-Bold'] text-brand-colors-RootBlack">
+                          {selectedListing.price}
+                        </span>
+                        <span className="text-base font-['MadaniArabic-Medium'] text-brand-colors-RootBlack">
+                          {selectedListing.unit}
+                        </span>
+                      </div>
+
+                      {/* Average Market Price */}
+                      <div className="p-2.5 bg-brand-colors-HarvestMist rounded-[20px] inline-flex items-center gap-2.5 mb-6">
+                        <span className="text-base font-['MadaniArabic-Medium'] text-brand-colors-RootBlack">
+                          Average market price {selectedListing.averageMarketPrice}
+                        </span>
+                      </div>
+
+                      {/* Category */}
+                      <div className="mb-6">
+                        <h3 className="text-base font-['MadaniArabic-Medium'] text-brand-colors-RootBlack mb-2">
+                          Category:
+                        </h3>
+                        <p className="text-base font-['MadaniArabic-Medium'] text-brand-colors-rootgrey">
+                          {selectedListing.category}
+                        </p>
+                      </div>
+
+                      {/* Location */}
+                      <div className="flex items-center gap-2 mb-6">
+                        <img className="w-6 h-6" src="/location-icon.svg" alt="Location" />
+                        <span className="text-base font-['MadaniArabic-Medium'] text-brand-colors-RootBlack">
+                          {selectedListing.location}
+                        </span>
+                      </div>
+
+                      {/* Farm Address */}
+                      <div className="mb-6">
+                        <h3 className="text-base font-['MadaniArabic-Medium'] text-brand-colors-RootBlack mb-2">
+                          Farm Address:
+                        </h3>
+                        <p className="text-base font-['MadaniArabic-Medium'] text-brand-colors-rootgrey">
+                          {selectedListing.farmAddress}
+                        </p>
+                      </div>
+
+                      {/* Description */}
+                      <div className="mb-4">
+                        <h3 className="text-base font-['MadaniArabic-Medium'] text-brand-colors-RootBlack mb-2">
+                          Description:
+                        </h3>
+                        <p className="text-base font-['MadaniArabic-Medium'] text-brand-colors-rootgrey">
+                          {selectedListing.description}
+                        </p>
+                      </div>
                     </div>
-                    
-                    {/* Close Button */}
-                    <button 
-                      onClick={() => {
-                        setSelectedListing(null);
-                        setIsEditMode(false);
-                        setIsAddMode(false);
-                        setEditFormData(null);
-                        setAddFormData(null);
-                      }}
-                      className="absolute top-2.5 right-2.5 w-10 h-10 bg-white/70 rounded-full flex justify-center items-center pointer-events-auto cursor-pointer hover:bg-white/90 transition-colors z-10"
+                  </div>
+                </div>
+
+                {/* Fixed Action Buttons at Bottom */}
+                <div className="h-20 flex-shrink-0 flex items-center justify-center px-5">
+                  <div className="bg-white/20 rounded-full p-2.5 flex items-center gap-1.5">
+                    <button
+                      onClick={handleEditListing}
+                      className="px-6 py-3 bg-brand-colors-SproutGreen rounded-full flex items-center justify-center hover:bg-opacity-90 transition-colors min-w-0 sm:min-w-[192px]">
+                      <span className="text-base font-['MadaniArabic-Bold'] text-brand-colors-SteamWhite">
+                        Edit
+                      </span>
+                    </button>
+                    <button
+                      onClick={(e) => handleDeleteClick(selectedListing, e)}
+                      className="p-2.5 bg-white rounded-3xl shadow-[0px_4px_30px_5px_rgba(0,0,0,0.08)] flex items-center justify-center hover:bg-red-50 transition-colors group"
                     >
-                      <img 
-                        src="/close icon.svg" 
-                        alt="Close" 
-                        className="w-5 h-5"
+                      <img
+                        src="/delete icon.svg"
+                        alt="Delete"
+                        className="w-5 h-5 group-hover:opacity-80"
+                        style={{ filter: 'invert(36%) sepia(69%) saturate(2083%) hue-rotate(338deg) brightness(97%) contrast(106%)' }}
                       />
                     </button>
                   </div>
-                  
-                  {/* Thumbnail Images */}
-                  <div className="flex justify-start items-center gap-5 mb-8">
-                    {selectedListing.images.slice(0, 4).map((img, index) => (
-                      <img 
-                        key={index} 
-                        onClick={() => setCurrentImageIndex(index)}
-                        className={`w-24 h-24 rounded-[10px] object-cover cursor-pointer transition-all ${
-                          currentImageIndex === index 
-                            ? 'ring-2 ring-brand-colors-SproutGreen ring-offset-2' 
-                            : 'hover:opacity-80'
-                        }`} 
-                        src={img} 
-                        alt={`${selectedListing.title} ${index + 1}`} 
-                      />
-                    ))}
-                  </div>
-                  
-                  {/* Title */}
-                  <h2 className="text-3xl font-['MadaniArabic-Bold'] text-brand-colors-RootBlack leading-[50px] mb-4">
-                    {selectedListing.title}
-                  </h2>
-                  
-                  {/* Price */}
-                  <div className="flex items-end gap-1 mb-4">
-                    <span className="text-2xl font-['MadaniArabic-Bold'] text-brand-colors-RootBlack">
-                      {selectedListing.price}
-                    </span>
-                    <span className="text-base font-['MadaniArabic-Medium'] text-brand-colors-RootBlack">
-                      {selectedListing.unit}
-                    </span>
-                  </div>
-                  
-                  {/* Average Market Price */}
-                  <div className="p-2.5 bg-brand-colors-HarvestMist rounded-[20px] inline-flex items-center gap-2.5 mb-6">
-                    <span className="text-base font-['MadaniArabic-Medium'] text-brand-colors-RootBlack">
-                      Average market price {selectedListing.averageMarketPrice}
-                    </span>
-                  </div>
-                  
-                  {/* Category */}
-                  <div className="mb-6">
-                    <h3 className="text-base font-['MadaniArabic-Medium'] text-brand-colors-RootBlack mb-2">
-                      Category:
-                    </h3>
-                    <p className="text-base font-['MadaniArabic-Medium'] text-brand-colors-rootgrey">
-                      {selectedListing.category}
-                    </p>
-                  </div>
-                  
-                  {/* Location */}
-                  <div className="flex items-center gap-2 mb-6">
-                    <img className="w-6 h-6" src="/location-icon.svg" alt="Location" />
-                    <span className="text-base font-['MadaniArabic-Medium'] text-brand-colors-RootBlack">
-                      {selectedListing.location}
-                    </span>
-                  </div>
-                  
-                  {/* Farm Address */}
-                  <div className="mb-6">
-                    <h3 className="text-base font-['MadaniArabic-Medium'] text-brand-colors-RootBlack mb-2">
-                      Farm Address:
-                    </h3>
-                    <p className="text-base font-['MadaniArabic-Medium'] text-brand-colors-rootgrey">
-                      {selectedListing.farmAddress}
-                    </p>
-                  </div>
-                  
-                  {/* Description */}
-                  <div className="mb-4">
-                    <h3 className="text-base font-['MadaniArabic-Medium'] text-brand-colors-RootBlack mb-2">
-                      Description:
-                    </h3>
-                    <p className="text-base font-['MadaniArabic-Medium'] text-brand-colors-rootgrey">
-                      {selectedListing.description}
-                    </p>
-                  </div>
-                  </div>
                 </div>
-              </div>
-              
-              {/* Fixed Action Buttons at Bottom */}
-              <div className="h-20 flex-shrink-0 flex items-center justify-center px-5">
-                <div className="bg-white/20 rounded-full p-2.5 flex items-center gap-1.5">
-                  <button 
-                    onClick={handleEditListing}
-                    className="px-6 py-3 bg-brand-colors-SproutGreen rounded-full flex items-center justify-center hover:bg-opacity-90 transition-colors min-w-0 sm:min-w-[192px]">
-                    <span className="text-base font-['MadaniArabic-Bold'] text-brand-colors-SteamWhite">
-                      Edit
-                    </span>
-                  </button>
-                  <button 
-                    onClick={(e) => handleDeleteClick(selectedListing, e)}
-                    className="p-2.5 bg-white rounded-3xl shadow-[0px_4px_30px_5px_rgba(0,0,0,0.08)] flex items-center justify-center hover:bg-red-50 transition-colors group"
-                  >
-                    <img 
-                      src="/delete icon.svg" 
-                      alt="Delete" 
-                      className="w-5 h-5 group-hover:opacity-80"
-                      style={{ filter: 'invert(36%) sepia(69%) saturate(2083%) hue-rotate(338deg) brightness(97%) contrast(106%)' }}
-                    />
-                  </button>
+
+                {/* Custom Scroll Indicator */}
+                <div className="w-[5px] h-[500px] right-[10px] top-[100px] absolute bg-gray-200 rounded-full z-10">
+                  <div
+                    className="w-[5px] h-14 bg-brand-colors-SproutGreen rounded-full transition-all duration-150"
+                    style={{
+                      transform: `translateY(${scrollPosition * (500 - 56)}px)`
+                    }}
+                  ></div>
                 </div>
-              </div>
-              
-              {/* Custom Scroll Indicator */}
-              <div className="w-[5px] h-[500px] right-[10px] top-[100px] absolute bg-gray-200 rounded-full z-10">
-                <div 
-                  className="w-[5px] h-14 bg-brand-colors-SproutGreen rounded-full transition-all duration-150"
-                  style={{
-                    transform: `translateY(${scrollPosition * (500 - 56)}px)`
-                  }}
-                ></div>
-              </div>
               </>
-            ) : isEditMode && selectedListing ? (
+            ) : isEditMode && selectedListing?._original ? (
               /* Edit View */
               <EditListingView
-                listing={selectedListing}
-                onSave={handleSaveChanges}
+                listing={selectedListing._original}
+                onUpdate={(updatedListing: Listing) => {
+                  // Update local state with the updated listing
+                  const updatedDisplay = convertToDisplayListing(updatedListing);
+                  setListingsData(prevListings =>
+                    prevListings.map(l => l.id === updatedDisplay.id ? updatedDisplay : l)
+                  );
+                  setSelectedListing(updatedDisplay);
+                  setIsEditMode(false);
+                  setEditFormData(null);
+                }}
                 onCancel={() => {
                   setIsEditMode(false);
                   setEditFormData(null);
@@ -762,42 +777,42 @@ const MyListings: React.FC<MyListingsProps> = ({
             </button>
           </div>
         </div>
-        
-        {/* Controls Section */}
-        <div className="w-full inline-flex justify-between items-center">
+
+        {/* Controls Section - Responsive Layout */}
+        <div className="w-full flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4">
           {/* Search Bar */}
-          <div className="w-full sm:w-96 p-3 bg-black/5 rounded-[30px] outline outline-1 outline-offset-[-1px] outline-black/5 flex items-center gap-2">
+          <div className="w-full lg:w-96 p-3 bg-black/5 rounded-[30px] outline outline-1 outline-offset-[-1px] outline-black/5 flex items-center gap-2">
             <img className="w-6 h-6" src="/search icon.svg" alt="Search" />
             <input
               type="text"
-              placeholder="Search"
+              placeholder="Search products..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="flex-1 bg-transparent text-brand-colors-RootBlack text-xl font-madani-medium leading-9 placeholder:text-brand-colors-rootgrey focus:outline-none"
+              className="flex-1 bg-transparent text-brand-colors-RootBlack text-base md:text-xl font-madani-medium leading-6 md:leading-9 placeholder:text-brand-colors-rootgrey focus:outline-none"
             />
           </div>
-          
-          <div className="flex justify-start items-center gap-5">
+
+          <div className="flex flex-col sm:flex-row justify-between sm:justify-start items-stretch sm:items-center gap-3 sm:gap-5">
             {/* Sort Dropdown */}
-            <div className="flex items-center gap-3.5 relative">
-              <div className="text-brand-colors-rootgrey text-xl font-madani-medium leading-9">
-                Sort by :
+            <div className="flex items-center gap-2 sm:gap-3.5 relative flex-1 sm:flex-initial">
+              <div className="text-brand-colors-rootgrey text-sm sm:text-base md:text-xl font-madani-medium leading-6 md:leading-9 whitespace-nowrap">
+                Sort by:
               </div>
-              <div className="relative" ref={dropdownRef}>
-                <button 
+              <div className="relative flex-1 sm:flex-initial" ref={dropdownRef}>
+                <button
                   onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                  className="w-52 px-6 py-3 bg-white rounded-[20px] shadow-[0px_4px_30px_5px_rgba(0,0,0,0.15)] flex justify-center items-center gap-1 hover:bg-gray-50 transition-colors"
+                  className="w-full sm:w-52 px-4 sm:px-6 py-2 sm:py-3 bg-white rounded-[20px] shadow-[0px_4px_30px_5px_rgba(0,0,0,0.15)] flex justify-center items-center gap-1 hover:bg-gray-50 transition-colors"
                 >
                   <div className="text-brand-colors-RootBlack text-base font-madani-medium leading-6 whitespace-nowrap overflow-hidden text-ellipsis flex-1">
                     {selectedSort}
                   </div>
-                  <img 
-                    src="/chevron-down-2.svg" 
-                    alt="Chevron" 
+                  <img
+                    src="/chevron-down-2.svg"
+                    alt="Chevron"
                     className={`w-4 h-4 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`}
                   />
                 </button>
-                
+
                 {/* Dropdown Menu */}
                 {isDropdownOpen && (
                   <div className="absolute top-full mt-2 w-52 bg-white rounded-[15px] shadow-[0px_8px_40px_10px_rgba(0,0,0,0.12)] overflow-hidden z-20">
@@ -808,11 +823,10 @@ const MyListings: React.FC<MyListingsProps> = ({
                           setSelectedSort(option);
                           setIsDropdownOpen(false);
                         }}
-                        className={`w-full px-6 py-3 text-left text-base font-madani-medium hover:bg-brand-colors-HarvestMist transition-colors whitespace-nowrap ${
-                          selectedSort === option 
-                            ? 'bg-brand-colors-HarvestMist text-brand-colors-RootBlack' 
-                            : 'text-brand-colors-rootgrey hover:text-brand-colors-RootBlack'
-                        }`}
+                        className={`w-full px-6 py-3 text-left text-base font-madani-medium hover:bg-brand-colors-HarvestMist transition-colors whitespace-nowrap ${selectedSort === option
+                          ? 'bg-brand-colors-HarvestMist text-brand-colors-RootBlack'
+                          : 'text-brand-colors-rootgrey hover:text-brand-colors-RootBlack'
+                          }`}
                       >
                         {option}
                       </button>
@@ -821,14 +835,14 @@ const MyListings: React.FC<MyListingsProps> = ({
                 )}
               </div>
             </div>
-            
+
             {/* Add New Listing Button */}
             <button
               onClick={handleAddNewListing}
-              className="h-[56px] min-w-[192px] px-6 py-3 rounded-[30px] flex items-center justify-center gap-2.5 cursor-pointer hover:opacity-90 transition-opacity"
+              className="h-12 sm:h-[56px] w-full sm:w-auto sm:min-w-[192px] px-6 py-3 rounded-[30px] flex items-center justify-center gap-2.5 cursor-pointer hover:opacity-90 transition-opacity"
               style={{ backgroundColor: '#84C62C' }}
             >
-              <div className="text-white text-base font-madani-bold">
+              <div className="text-white text-sm sm:text-base font-madani-bold whitespace-nowrap">
                 Add New Product
               </div>
             </button>
@@ -842,10 +856,10 @@ const MyListings: React.FC<MyListingsProps> = ({
         onClose={handleCancelDelete}
         onConfirm={handleConfirmDelete}
         productName={listingToDelete?.title}
-        isDeleting={isDeleting}
+        isDeleting={deleteListingMutation.isPending}
       />
     </div>
-  ); 
+  );
 };
 
 export default MyListings;

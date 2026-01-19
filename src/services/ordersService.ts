@@ -1,6 +1,6 @@
 // Orders service for Team Delta Defenders Backend API
 import { api, ApiResponse } from './api';
-import { Product } from './productsService';
+import { Listing } from '@/types/listings';
 
 export interface Order {
   id: string;
@@ -13,7 +13,7 @@ export interface Order {
   shipping_address: string;
   created_at: string;
   updated_at: string;
-  product?: Product;
+  product?: Listing;
   buyer_name?: string;
   farmer_name?: string;
 }

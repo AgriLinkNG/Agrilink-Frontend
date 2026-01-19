@@ -1,5 +1,6 @@
 // Core API configuration with security best practices
 import { getAuthToken, removeAuthToken } from './auth/tokenStorage';
+import { errorLogger } from '../lib/errorLogger';
 
 // Get API base URL with proper fallback
 const getApiBaseUrl = (): string => {
@@ -127,6 +128,34 @@ async function makeRequest<T>(
   }
 
   const url = `${API_CONFIG.BASE_URL}${endpoint}`;
+  const startTime = Date.now();
+
+  // Log the request
+  const method = options.method || 'GET';
+  let requestPayload: any = undefined;
+
+  // Handle different body types
+  if (options.body) {
+    if (options.body instanceof FormData) {
+      // For FormData, log a summary instead of the actual data
+      requestPayload = { type: 'FormData', note: 'File upload - contents not logged' };
+    } else if (typeof options.body === 'string') {
+      try {
+        requestPayload = JSON.parse(options.body);
+      } catch {
+        requestPayload = options.body;
+      }
+    } else {
+      requestPayload = options.body;
+    }
+  }
+
+  const requestId = errorLogger.logApiRequest(
+    endpoint,
+    method,
+    requestPayload,
+    options.headers as Record<string, string>
+  );
 
   try {
     // Record the request
@@ -135,10 +164,19 @@ async function makeRequest<T>(
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), API_CONFIG.TIMEOUT);
 
+    // For FormData, we need to let the browser set Content-Type with boundary
+    const isFormData = options.body instanceof FormData;
+    const baseHeaders = isFormData
+      ? {
+          'X-Requested-With': 'XMLHttpRequest',
+          // Don't set Accept or Content-Type for FormData - let browser handle it
+        }
+      : createHeaders();
+
     const response = await fetch(url, {
       ...options,
       headers: {
-        ...createHeaders(),
+        ...baseHeaders,
         ...options.headers,
       },
       signal: controller.signal,
@@ -149,6 +187,7 @@ async function makeRequest<T>(
     });
 
     clearTimeout(timeoutId);
+    const duration = Date.now() - startTime;
 
     // Handle different response statuses
     if (response.status === 401) {
@@ -183,12 +222,24 @@ async function makeRequest<T>(
     }
 
     if (!response.ok) {
-      throw new ApiRequestError(
+      const error = new ApiRequestError(
         data.message || `HTTP ${response.status}: ${response.statusText}`,
         response.status,
         data.errors
       );
+
+      // Log error response
+      errorLogger.logApiError(endpoint, error, {
+        method,
+        payload: requestPayload,
+        retryAttempt: retryCount,
+      });
+
+      throw error;
     }
+
+    // Log successful response
+    errorLogger.logApiResponse(endpoint, response.status, data, duration, requestId);
 
     return data;
 
@@ -200,35 +251,59 @@ async function makeRequest<T>(
 
     if (error instanceof Error) {
       if (error.name === 'AbortError') {
-        throw new ApiRequestError('Request timeout', 408);
+        const timeoutError = new ApiRequestError('Request timeout', 408);
+        errorLogger.logApiError(endpoint, timeoutError, {
+          method,
+          payload: requestPayload,
+          retryAttempt: retryCount,
+        });
+        throw timeoutError;
       }
 
       // Retry logic for network errors
       if (retryCount < API_CONFIG.MAX_RETRIES) {
         const delay = Math.pow(2, retryCount) * 1000; // Exponential backoff
+        errorLogger.logRetryAttempt(endpoint, retryCount + 1, delay);
         await new Promise(resolve => setTimeout(resolve, delay));
         return makeRequest<T>(endpoint, options, retryCount + 1);
       }
 
-      throw new ApiRequestError(`Network error: ${error.message}`, 0);
+      const networkError = new ApiRequestError(`Network error: ${error.message}`, 0);
+      errorLogger.logApiError(endpoint, networkError, {
+        method,
+        payload: requestPayload,
+        retryAttempt: retryCount,
+      });
+      throw networkError;
     }
 
-    throw new ApiRequestError('Unknown error occurred', 0);
+    const unknownError = new ApiRequestError('Unknown error occurred', 0);
+    errorLogger.logApiError(endpoint, unknownError, {
+      method,
+      payload: requestPayload,
+      retryAttempt: retryCount,
+    });
+    throw unknownError;
   }
 }
 
 // HTTP Methods with security
 export const api = {
   get: <T>(endpoint: string, params?: Record<string, any>): Promise<ApiResponse<T>> => {
-    const url = new URL(`${API_CONFIG.BASE_URL}${endpoint}`);
+    let finalEndpoint = endpoint;
     if (params) {
+      const searchParams = new URLSearchParams();
       Object.keys(params).forEach(key => {
         if (params[key] !== undefined && params[key] !== null) {
-          url.searchParams.append(key, String(params[key]));
+          searchParams.append(key, String(params[key]));
         }
       });
+      const queryString = searchParams.toString();
+      if (queryString) {
+        finalEndpoint += `?${queryString}`;
+      }
     }
-    return makeRequest<T>(url.pathname + url.search, { method: 'GET' });
+    return makeRequest<T>(finalEndpoint, { method: 'GET' });
   },
 
   post: <T>(endpoint: string, data?: any): Promise<ApiResponse<T>> => {
@@ -258,8 +333,14 @@ export const api = {
 
   // File upload with security
   upload: <T>(endpoint: string, formData: FormData): Promise<ApiResponse<T>> => {
-    const headers = createHeaders();
-    delete (headers as any)['Content-Type']; // Let browser set content-type for multipart
+    // Add auth token if available
+    // Note: makeRequest will detect FormData and skip setting Content-Type/Accept headers
+    const token = getAuthToken();
+    const headers: Record<string, string> = {};
+
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
 
     return makeRequest<T>(endpoint, {
       method: 'POST',

@@ -16,7 +16,6 @@ dist-ssr
 .env.development
 .env.production
 .env.test
-.env.example
 
 # Sensitive files
 *.pem
