@@ -1,0 +1,20 @@
+# Cloudflare Pages Redirects
+# Handle SEO redirects and URL normalization
+
+# Redirect www to non-www (or vice versa - choose one)
+# https://www.agrilink.com.ng/* https://agrilink.com.ng/:splat 301
+
+# Redirect old waitlist URL if it existed
+/waitlist /  301
+
+# Redirect any trailing slashes (except root)
+/home/ /home 301
+/login/ /login 301
+/signup/ /signup 301
+
+# Handle common typos or variations
+/farmer /farmers-signup 301
+/buyer /buyer-signup 301
+/join /  301
+/register /signup 301
+/signin /login 301

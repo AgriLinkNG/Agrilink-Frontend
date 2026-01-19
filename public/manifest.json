@@ -1,0 +1,54 @@
+{
+    "name": "AgriLink Nigeria",
+    "short_name": "AgriLink",
+    "description": "Nigeria's first farm-to-buyer marketplace. Connect farmers directly with buyers, eliminate middlemen, and reduce post-harvest loss.",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#ffffff",
+    "theme_color": "#22c55e",
+    "orientation": "portrait-primary",
+    "scope": "/",
+    "lang": "en-NG",
+    "categories": [
+        "business",
+        "food",
+        "shopping"
+    ],
+    "icons": [
+        {
+            "src": "/android-chrome-192x192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "/android-chrome-512x512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "/apple-touch-icon.png",
+            "sizes": "180x180",
+            "type": "image/png"
+        }
+    ],
+    "screenshots": [
+        {
+            "src": "/screenshots/waitlist-desktop.png",
+            "sizes": "1280x720",
+            "type": "image/png",
+            "form_factor": "wide",
+            "label": "AgriLink Waitlist Page - Desktop"
+        },
+        {
+            "src": "/screenshots/waitlist-mobile.png",
+            "sizes": "750x1334",
+            "type": "image/png",
+            "form_factor": "narrow",
+            "label": "AgriLink Waitlist Page - Mobile"
+        }
+    ],
+    "related_applications": [],
+    "prefer_related_applications": false
+}
