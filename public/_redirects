@@ -1,7 +1,11 @@
 # Cloudflare Pages Redirects
 # Handle SEO redirects and URL normalization
 
-# Redirect www to non-www (or vice versa - choose one)
+# IMPORTANT: Static files must be served directly (not through SPA)
+# Cloudflare Pages automatically serves files from /public, but we need
+# to ensure the SPA fallback doesn't catch these paths
+
+# Redirect www to non-www (uncomment if you want this)
 # https://www.agrilink.com.ng/* https://agrilink.com.ng/:splat 301
 
 # Redirect old waitlist URL if it existed
@@ -18,3 +22,7 @@
 /join /  301
 /register /signup 301
 /signin /login 301
+
+# SPA fallback - MUST be last
+# This catches all non-file routes and serves index.html
+/* /index.html 200
