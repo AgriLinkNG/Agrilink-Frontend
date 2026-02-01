@@ -16,6 +16,7 @@ dist-ssr
 .env.development
 .env.production
 .env.test
+.env.example
 
 # Sensitive files
 *.pem
@@ -39,3 +40,4 @@ secrets.json
 # Project documentation (private)
 SECURITY_AUDIT_REPORT.md
 PRODUCTION_LAUNCH_CHECKLIST.md
+BACKEND_REQUIREMENTS.md
